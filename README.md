@@ -51,10 +51,21 @@ Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
    npm run dev
    ```
 
-5. Em produção (Vercel), `vercel.json` já define os crons. Defina `CRON_SECRET`
+5. Em produção (Vercel), `vercel.json` já define o cron. Defina `CRON_SECRET`
    no projeto Vercel — ele envia automaticamente `Authorization: Bearer
-   $CRON_SECRET` nas chamadas agendadas. Ajuste a frequência conforme seu
-   plano (Hobby só permite 1x/dia).
+   $CRON_SECRET` nas chamadas agendadas.
+
+   **Plano Hobby da Vercel só permite cron 1x/dia** (e a frequência precisa
+   ser exatamente essa — `*/10 * * * *` é rejeitado). Por isso o agendamento
+   de produção usa um único endpoint, `/api/cron/sync`, rodando 1x/dia: ele
+   roda o token health check e depois processa em loop, dentro de um
+   orçamento de ~50s (`maxDuration=60`), quantos chunks de
+   `sync_entities`/`sync_insights_daily`/`sync_insights_backfill`/
+   `sync_breakdowns` couberem antes do timeout. Isso troca a frequência do
+   roadmap original (6/6h, 3x/dia) por 1x/dia — aceitável para MVP; ao migrar
+   para o plano Pro, é só voltar a agendar `/api/cron/sync-*` individualmente
+   em `vercel.json` com a frequência da Seção 6.1 do PROJECT.md. Os endpoints
+   individuais continuam existindo (úteis para disparo manual via curl).
 
 ## O que já funciona
 
@@ -68,19 +79,22 @@ Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
   rate limit (`x-business-use-case-usage`, `x-fb-ads-insights-throttle`),
   backoff exponencial em `code=4`/`code=17`/`subcode=1504022` e Batch API
   (até 50 chamadas).
-- **Jobs de sync** (`/api/cron/sync-*`), todos fatiados e retomáveis via
-  `sync_jobs.cursor` (nunca puxam tudo numa invocação só):
-  - `sync-entities`: estrutura (campanhas/adsets/ads), 1 página de 1 nível
-    por invocação.
-  - `sync-insights-daily`: últimos 7 dias de insights nível ad, 1 conta por
-    invocação.
-  - `sync-insights-backfill`: 90 dias via Async Insights Jobs da Meta —
-    submit/poll/download em invocações separadas; disparado automaticamente
-    ao conectar uma conta.
-  - `sync-breakdowns`: publisher_platform/platform_position/age/gender, uma
-    dimensão por invocação.
-  - `token-health`: revalida todos os tokens diariamente, marca contas como
-    `disconnected` quando o token cai.
+- **Jobs de sync**, todos fatiados e retomáveis via `sync_jobs.cursor` (nunca
+  puxam tudo numa invocação só). A lógica de cada um vive em
+  `lib/engine/sync-workers.ts` e é chamada tanto pelo worker unificado
+  `/api/cron/sync` (produção, ver acima) quanto pelos endpoints individuais
+  `/api/cron/sync-*` (debug manual):
+  - `sync_entities`: estrutura (campanhas/adsets/ads), 1 página de 1 nível
+    por chunk.
+  - `sync_insights_daily`: últimos 7 dias de insights nível ad, 1 conta por
+    chunk.
+  - `sync_insights_backfill`: 90 dias via Async Insights Jobs da Meta —
+    submit/poll/download em chunks separados; disparado automaticamente ao
+    conectar uma conta.
+  - `sync_breakdowns`: publisher_platform/platform_position/age/gender, uma
+    dimensão por chunk.
+  - `token-health`: revalida todos os tokens a cada execução do worker,
+    marca contas como `disconnected` quando o token cai.
   - Agregação adset/campanha a partir das linhas nível ad roda no Postgres
     via pg_cron (`aggregate_recent_metrics_daily`), não em código de aplicação.
 - **Dashboard de métricas** (`/app/accounts/[id]`): drill-down
