@@ -1,18 +1,20 @@
 import { PlayCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Reveal } from "@/components/marketing/reveal";
 
 export function SocialProofSection() {
   return (
-    <section className="bg-surface-container-low px-margin-mobile py-20 md:px-margin-desktop">
+    <section className="px-margin-mobile py-24 md:px-margin-desktop">
       <div className="mx-auto max-w-7xl">
-        <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
-          Beta fechado
-        </p>
-        <h2 className="mt-2 max-w-2xl font-heading text-3xl font-bold text-primary md:text-4xl">
-          Estamos com um grupo pequeno de founding members validando o produto
-        </h2>
-        <Card className="mt-8 max-w-3xl border-dashed border-outline-variant shadow-none">
-          <CardContent className="flex flex-col items-start gap-3 py-10 sm:flex-row sm:items-center sm:gap-6">
+        <Reveal>
+          <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
+            Beta fechado
+          </p>
+          <h2 className="mt-2 max-w-2xl font-heading text-3xl font-bold text-primary md:text-4xl">
+            Estamos com um grupo pequeno de founding members validando o produto
+          </h2>
+        </Reveal>
+        <Reveal delay={120}>
+          <div className="mt-8 flex max-w-3xl flex-col items-start gap-4 rounded-2xl border border-dashed border-outline-variant bg-card p-8 sm:flex-row sm:items-center sm:gap-6">
             <PlayCircle className="size-10 shrink-0 text-secondary" />
             <div>
               <p className="text-sm font-medium text-foreground">
@@ -23,8 +25,8 @@ export function SocialProofSection() {
                 founding members tiverem histórico suficiente na plataforma.
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </Reveal>
       </div>
     </section>
   );

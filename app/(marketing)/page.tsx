@@ -4,9 +4,8 @@ import { PainBar } from "@/components/marketing/pain-bar";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { TransparencySection } from "@/components/marketing/transparency-section";
 import { BusinessResultSection } from "@/components/marketing/business-result-section";
-import { MultichannelSection } from "@/components/marketing/multichannel-section";
+import { PlatformBento } from "@/components/marketing/platform-bento";
 import { PersonasSection } from "@/components/marketing/personas-section";
-import { SecuritySection } from "@/components/marketing/security-section";
 import { SocialProofSection } from "@/components/marketing/social-proof-section";
 import { PricingSummary } from "@/components/marketing/pricing-summary";
 import { FaqSection } from "@/components/marketing/faq-section";
@@ -47,9 +46,8 @@ export default function MarketingHome() {
       <HowItWorks />
       <TransparencySection />
       <BusinessResultSection />
-      <MultichannelSection />
+      <PlatformBento />
       <PersonasSection />
-      <SecuritySection />
       <SocialProofSection />
       <PricingSummary />
       <FaqSection />

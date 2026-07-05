@@ -1,4 +1,5 @@
 import { Plug, SlidersHorizontal, ClipboardCheck } from "lucide-react";
+import { Reveal } from "@/components/marketing/reveal";
 
 const STEPS = [
   {
@@ -23,33 +24,39 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="como-funciona" className="scroll-mt-16 px-margin-mobile py-20 md:px-margin-desktop">
+    <section id="como-funciona" className="scroll-mt-16 px-margin-mobile py-24 md:px-margin-desktop">
       <div className="mx-auto max-w-7xl">
-        <div className="max-w-2xl">
+        <Reveal className="max-w-2xl">
           <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
             Como funciona
           </p>
           <h2 className="mt-2 font-heading text-3xl font-bold text-primary md:text-4xl">
             Do token ao primeiro diagnóstico, em três passos
           </h2>
-        </div>
-        <ol className="mt-10 grid gap-6 md:grid-cols-3">
+        </Reveal>
+
+        <ol className="relative mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          <div
+            aria-hidden
+            className="absolute top-5 right-[16%] left-[16%] hidden h-px bg-gradient-to-r from-outline-variant via-outline to-outline-variant md:block"
+          />
           {STEPS.map((step, index) => (
-            <li
-              key={step.title}
-              className="artisanal-card flex flex-col gap-4 rounded-2xl border border-outline-variant/50 bg-card p-6"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                  {index + 1}
-                </span>
-                <step.icon className="size-5 text-secondary" />
-              </div>
-              <h3 className="font-heading text-lg font-semibold text-foreground">
-                {step.title}
-              </h3>
-              <p className="text-sm text-on-surface-variant">{step.description}</p>
-            </li>
+            <Reveal key={step.title} delay={index * 120}>
+              <li className="relative flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="ledger-figure relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface text-sm font-medium text-primary">
+                    {index + 1}
+                  </span>
+                  <step.icon className="size-5 text-secondary" />
+                </div>
+                <h3 className="font-heading text-xl font-semibold text-foreground">
+                  {step.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-on-surface-variant">
+                  {step.description}
+                </p>
+              </li>
+            </Reveal>
           ))}
         </ol>
       </div>

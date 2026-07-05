@@ -132,7 +132,16 @@
   --md3-background: #fdf8f6;
   --md3-on-background: #1c1b1a;
 
-  /* Pares semânticos do shadcn mapeados para o MD3 acima */
+}
+
+/*
+ * Pares semânticos do shadcn mapeados para o MD3 acima. Declarados também em
+ * `.dark` (não só em :root) para que seções escuras aninhadas re-resolvam os
+ * var(--md3-*) contra os tokens escuros — custom properties são substituídas
+ * no elemento em que são declaradas, não no de uso.
+ */
+:root,
+.dark {
   --background: var(--md3-background);
   --foreground: var(--md3-on-background);
   --card: var(--md3-surface-container-low);
@@ -263,5 +272,44 @@
   }
   .artisanal-card:hover {
     transform: translateY(-2px);
+  }
+
+  /* Números de evidência — sempre em mono tabular, como um livro-razão */
+  .ledger-figure {
+    font-family: var(--font-geist-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Motion da LP — entrada do hero e reveal on scroll (progressive enhancement) */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-rise {
+    animation: lp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0s);
+  }
+
+  .lp-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+  .lp-reveal[data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }

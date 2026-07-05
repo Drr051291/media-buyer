@@ -41,6 +41,8 @@ const FAQS = [
   },
 ];
 
+import { Reveal } from "@/components/marketing/reveal";
+
 export function FaqSection() {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -56,31 +58,35 @@ export function FaqSection() {
   };
 
   return (
-    <section className="bg-surface-container-low px-margin-mobile py-20 md:px-margin-desktop">
+    <section className="px-margin-mobile py-24 md:px-margin-desktop">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="mx-auto max-w-3xl">
-        <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
-          Perguntas frequentes
-        </p>
-        <h2 className="mt-2 font-heading text-3xl font-bold text-primary md:text-4xl">
-          Dúvidas comuns
-        </h2>
-        <div className="mt-8 divide-y divide-outline-variant/50 rounded-2xl border border-outline-variant/50 bg-card">
-          {FAQS.map((faq) => (
-            <details key={faq.question} className="group p-5 open:pb-5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground marker:content-none">
-                {faq.question}
-                <span className="shrink-0 text-lg text-on-surface-variant transition-transform group-open:rotate-45">
-                  +
-                </span>
-              </summary>
-              <p className="mt-3 text-sm text-on-surface-variant">{faq.answer}</p>
-            </details>
-          ))}
-        </div>
+        <Reveal>
+          <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
+            Perguntas frequentes
+          </p>
+          <h2 className="mt-2 font-heading text-3xl font-bold text-primary md:text-4xl">
+            Dúvidas comuns
+          </h2>
+        </Reveal>
+        <Reveal delay={120}>
+          <div className="mt-8 divide-y divide-outline-variant/50 rounded-2xl border border-outline-variant/50 bg-card">
+            {FAQS.map((faq) => (
+              <details key={faq.question} className="group p-5 open:pb-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground marker:content-none">
+                  {faq.question}
+                  <span className="shrink-0 text-lg text-on-surface-variant transition-transform group-open:rotate-45">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-on-surface-variant">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );

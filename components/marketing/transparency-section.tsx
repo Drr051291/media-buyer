@@ -1,5 +1,5 @@
 import { FileSearch, History, RotateCcw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Reveal } from "@/components/marketing/reveal";
 
 const POINTS = [
   {
@@ -19,11 +19,18 @@ const POINTS = [
   },
 ];
 
+const EVIDENCE = [
+  { label: "CPA (3d)", value: "R$ 68,40", note: "vs. R$ 51,80 na média 14d", alert: true },
+  { label: "CTR (7d)", value: "1,12%", note: "-27% vs. 14d anteriores", alert: false },
+  { label: "Frequência", value: "4.8", note: "acima do limiar do modelo", alert: false },
+  { label: "Conversões (14d)", value: "86", note: "volume com significância", alert: false },
+];
+
 export function TransparencySection() {
   return (
-    <section className="px-margin-mobile py-20 md:px-margin-desktop">
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2">
-        <div>
+    <section className="border-t border-outline-variant/60 bg-surface-container-low px-margin-mobile py-24 md:px-margin-desktop">
+      <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2">
+        <Reveal>
           <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
             Sem caixa-preta
           </p>
@@ -36,7 +43,7 @@ export function TransparencySection() {
             rejeitar, o agente aprende sua preferência. Auditoria completa de tudo que
             foi executado, com reversão em um clique.
           </p>
-          <ul className="mt-8 grid gap-4">
+          <ul className="mt-8 grid gap-5">
             {POINTS.map((point) => (
               <li key={point.title} className="flex items-start gap-3">
                 <point.icon className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -47,42 +54,38 @@ export function TransparencySection() {
               </li>
             ))}
           </ul>
-        </div>
+        </Reveal>
 
-        <Card className="border-outline-variant/60 shadow-none">
-          <CardContent className="flex flex-col gap-3 text-sm">
+        <Reveal delay={120}>
+          <div className="rounded-2xl border border-outline-variant/60 bg-surface-container-lowest p-6">
             <p className="font-heading text-sm font-semibold text-foreground">
               Diagnóstico expandido — Campanha &ldquo;Remarketing 30d&rdquo;
             </p>
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/60 p-4 text-xs text-on-surface-variant">
-              <div>
-                <p className="text-foreground">CPA (3d)</p>
-                <p className="mt-1 font-heading text-lg font-semibold text-destructive">R$ 68,40</p>
-                <p>vs. R$ 51,80 (14d)</p>
-              </div>
-              <div>
-                <p className="text-foreground">CTR (7d)</p>
-                <p className="mt-1 font-heading text-lg font-semibold text-foreground">1,12%</p>
-                <p>-27% vs. 14d anteriores</p>
-              </div>
-              <div>
-                <p className="text-foreground">Frequência</p>
-                <p className="mt-1 font-heading text-lg font-semibold text-foreground">4.8</p>
-                <p>acima do limiar do modelo</p>
-              </div>
-              <div>
-                <p className="text-foreground">Conversões (14d)</p>
-                <p className="mt-1 font-heading text-lg font-semibold text-foreground">86</p>
-                <p>volume com significância</p>
-              </div>
+            <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-outline-variant/50 bg-outline-variant/50">
+              {EVIDENCE.map((item) => (
+                <div key={item.label} className="bg-muted/70 p-4">
+                  <p className="text-[11px] tracking-wide text-on-surface-variant uppercase">
+                    {item.label}
+                  </p>
+                  <p
+                    className={
+                      "ledger-figure mt-1 text-xl font-medium " +
+                      (item.alert ? "text-destructive" : "text-foreground")
+                    }
+                  >
+                    {item.value}
+                  </p>
+                  <p className="mt-0.5 text-xs text-on-surface-variant">{item.note}</p>
+                </div>
+              ))}
             </div>
-            <p className="text-on-surface-variant">
+            <p className="mt-4 text-sm leading-relaxed text-on-surface-variant">
               Diagnóstico: queda de CTR com CPM estável indica fadiga de criativo, não
               pressão de leilão. Impacto esperado da ação: redução estimada de 10-15%
               no CPA da campanha.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
