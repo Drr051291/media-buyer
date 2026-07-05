@@ -12,6 +12,10 @@ import { fetchDailyBreakdownInsights, breakdownKey, type BreakdownDimension } fr
 import { readSecret } from "@/lib/vault";
 import { validateToken, hasMinimumScope } from "@/lib/meta/debug-token";
 import { claimNextJob, updateJobProgress, resolveAdAccountForSync, type SyncJobKind } from "./sync-orchestrator";
+import { buildAccountSnapshot, saveSnapshotWithAnalysis } from "./snapshot";
+import { runDailyAnalysis, validateDailyAnalysis } from "./reasoner";
+import { recordLlmUsage } from "./llm-usage";
+import type { BusinessContextProfile } from "./business-context";
 
 /**
  * Lógica de processamento de UM chunk por tipo de job, extraída das rotas
@@ -408,6 +412,75 @@ export async function runTokenHealthCheck(): Promise<WorkerResult> {
   };
 }
 
+/**
+ * Job diário do Reasoner (PROJECT.md 6.4): monta o Account Snapshot (Metric
+ * Engine + sinais), chama o Claude, valida o output e grava snapshot +
+ * insights + llm_usage. Uma conta por chunk — cada chamada ao Claude é
+ * isolada, então uma conta com erro não derruba as demais.
+ */
+export async function processOneDailyAnalysisChunk(): Promise<WorkerResult> {
+  const job = await claimNextJob("daily_analysis");
+  if (!job) return { processed: false, reason: "sem jobs pendentes" };
+
+  try {
+    const supabase = createServiceRoleClient();
+    const { data: account, error: accountError } = await supabase
+      .from("ad_accounts")
+      .select("id, org_id")
+      .eq("id", job.ad_account_id)
+      .single();
+    if (accountError || !account) throw new Error("Conta não encontrada");
+
+    const { data: contextRow } = await supabase
+      .from("business_context")
+      .select("profile")
+      .eq("ad_account_id", job.ad_account_id)
+      .maybeSingle();
+
+    const asOfIso = new Date().toISOString().slice(0, 10);
+    const snapshotPayload = await buildAccountSnapshot(job.ad_account_id, asOfIso);
+    const businessContext = (contextRow?.profile as BusinessContextProfile | undefined) ?? null;
+
+    const { output, usage, model } = await runDailyAnalysis({ businessContext, snapshot: snapshotPayload });
+    const validated = validateDailyAnalysis(output, snapshotPayload);
+
+    await saveSnapshotWithAnalysis(
+      job.ad_account_id,
+      asOfIso,
+      snapshotPayload,
+      {
+        diagnosis: validated.diagnosis,
+        healthScore: validated.healthScore,
+        proposedActions: validated.proposedActions,
+        model,
+      },
+      validated.insights,
+    );
+
+    await recordLlmUsage({
+      orgId: account.org_id,
+      adAccountId: job.ad_account_id,
+      purpose: "daily_analysis",
+      model,
+      usage,
+    });
+
+    await updateJobProgress(job.id, { status: "done", finished_at: new Date().toISOString() });
+
+    return {
+      processed: true,
+      healthScore: validated.healthScore,
+      insightsCount: validated.insights.length,
+      actionsCount: validated.proposedActions.length,
+      droppedCount: validated.droppedCount,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await updateJobProgress(job.id, { status: "failed", error: message });
+    return { processed: true, error: message };
+  }
+}
+
 const CHUNK_PROCESSORS: Record<
   Exclude<SyncJobKind, "token_health">,
   () => Promise<WorkerResult>
@@ -416,6 +489,7 @@ const CHUNK_PROCESSORS: Record<
   sync_insights_daily: processOneInsightsDailyChunk,
   sync_insights_backfill: processOneBackfillChunk,
   sync_breakdowns: processOneBreakdownsChunk,
+  daily_analysis: processOneDailyAnalysisChunk,
 };
 
 export const CHUNKED_JOB_KINDS = Object.keys(CHUNK_PROCESSORS) as Exclude<SyncJobKind, "token_health">[];

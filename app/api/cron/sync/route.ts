@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     enqueueMissingJobs("sync_entities", ENQUEUE_FREQUENCY_HOURS),
     enqueueMissingJobs("sync_insights_daily", ENQUEUE_FREQUENCY_HOURS),
     enqueueMissingJobs("sync_breakdowns", ENQUEUE_FREQUENCY_HOURS),
+    enqueueMissingJobs("daily_analysis", ENQUEUE_FREQUENCY_HOURS),
   ]);
 
   const tokenHealth = await runTokenHealthCheck().catch((error) => ({

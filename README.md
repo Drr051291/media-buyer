@@ -3,14 +3,16 @@
 SaaS de IA para gestão de contas Meta Ads. Ver `PROJECT.md` para a especificação
 completa do produto (contexto para Claude Code / agentes).
 
-Estado atual: **Fase 1 completa** — fundação (auth + multi-tenancy), wizard de
-conexão BYOT, `lib/meta/client.ts`, jobs de sync (entities/insights/backfill/
-breakdowns) e dashboard de métricas com comparação de período.
+Estado atual: **Fase 1 e Fase 2 completas** — fundação (auth + multi-tenancy),
+wizard de conexão BYOT, `lib/meta/client.ts`, jobs de sync (entities/insights/
+backfill/breakdowns), dashboard de métricas, Business Context, Metric Engine +
+detectores de sinais, Reasoner (Claude) com Feed de Insights e relatório
+semanal.
 
 ## Stack
 
 Next.js 16 (App Router) + Tailwind v4 + shadcn/ui, Supabase (Postgres + Auth +
-Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
+Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
 
 ## Setup local
 
@@ -44,6 +46,10 @@ Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
      migration só avisa e segue, mas o rollup precisa ser chamado manualmente)
    - `claim_next_sync_job`: reivindicação atômica de jobs pendentes
      (FOR UPDATE SKIP LOCKED), usada pelos workers de cron
+   - `business_context`, `snapshots`, `insights`, `llm_usage` + RLS (Fase 2)
+
+3.1. Defina também `ANTHROPIC_API_KEY` no `.env.local` — o Reasoner e o
+   relatório semanal chamam a API da Anthropic diretamente.
 
 4. Suba o servidor:
 
@@ -101,12 +107,37 @@ Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
   campanha → adset → ad, comparação 7d vs 7d anterior (spend, CTR, CPM, CPA,
   ROAS), sempre lendo do Postgres (`metrics_daily`), nunca da Meta em tempo
   real.
+- **Business Context** (`/app/accounts/[id]/context`): formulário com o
+  perfil de negócio da conta (ticket médio, margem, CPA/ROAS alvo, restrições
+  etc — PROJECT.md 6.2). Sugere CPA alvo automaticamente (70% do breakeven)
+  quando o gestor não define um, mas nunca aplica sem confirmação.
+- **Metric Engine + 6 detectores de sinais** (`lib/engine/metrics.ts`,
+  `lib/engine/signals/*`): recalcula CPA/ROAS usando o evento de conversão
+  real da conta (não mais o proxy genérico do sync), em janelas 3d/7d/14d/30d,
+  e roda `CREATIVE_FATIGUE`, `CPA_SPIKE`, `WINNER_UNDERFUNDED`,
+  `LOSER_OVERFUNDED`, `SPEND_ANOMALY`, `NO_SIGNIFICANCE` — tudo determinístico,
+  sem LLM.
+- **Reasoner (Claude Sonnet 5)** (`lib/engine/reasoner.ts`): recebe o Account
+  Snapshot (Metric Engine + sinais) e o Business Context, devolve diagnóstico
+  + health score + insights + ações propostas em JSON estruturado
+  (`output_config.format` com Zod). Validação pós-LLM descarta insights/ações
+  que referenciam entidades inexistentes ou violam o guardrail padrão de
+  variação de budget (±20%) — nunca a análise inteira.
+- **Feed de Insights** (`/app/accounts/[id]/insights`): mostra o diagnóstico e
+  as ações propostas do dia, somente leitura — execução chega na Fase 3.
+- **Relatório semanal** (`/app/reports/[id]`): agrega os últimos 7
+  diagnósticos diários e pede um resumo em linguagem de negócio, gerado sob
+  demanda (não persistido).
+- **`llm_usage`**: toda chamada ao Claude (análise diária, relatório) registra
+  tokens de input/output/cache e custo estimado em USD.
+- O job `daily_analysis` roda dentro do mesmo worker unificado `/api/cron/sync`
+  (1 conta por chunk, como os demais jobs).
 
 ## O que ainda não foi implementado
 
-Fica para as próximas fases do roadmap (`PROJECT.md` seção 10): Business
-Context, Metric Engine + detectores de sinais, Reasoner (Claude), Action
-Executor com guardrails, chat, autopilot e painel `/admin`.
+Fica para a Fase 3 do roadmap (`PROJECT.md` seção 10): Action Executor com
+guardrails configuráveis e execução real na Meta, aprovação no feed,
+rollback, chat com o agente, autopilot e painel `/admin`.
 
 ## Testes
 
