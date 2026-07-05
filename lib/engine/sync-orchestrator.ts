@@ -31,7 +31,13 @@ export interface SyncJobRow {
 export async function enqueueMissingJobs(kind: SyncJobKind, frequencyHours: number): Promise<void> {
   const supabase = createServiceRoleClient();
 
-  const { data: accounts } = await supabase.from("ad_accounts").select("id").eq("status", "active");
+  // Kill switch: pula contas pausadas (ad_accounts.status) e contas de
+  // tenants suspensos pelo admin da plataforma (organizations.status).
+  const { data: accounts } = await supabase
+    .from("ad_accounts")
+    .select("id, organizations!inner(status)")
+    .eq("status", "active")
+    .eq("organizations.status", "active");
   if (!accounts || accounts.length === 0) return;
 
   const cutoffIso = new Date(Date.now() - frequencyHours * 60 * 60 * 1000).toISOString();

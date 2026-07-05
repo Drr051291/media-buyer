@@ -3,6 +3,7 @@ import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { buildAccountSnapshot, type AccountSnapshotPayload } from "./snapshot";
+import { runAutopilotSweep } from "./autopilot";
 
 /**
  * Tools do Chat com o Agente (PROJECT.md 6.6) — todas read-only exceto
@@ -237,10 +238,20 @@ async function proposeActionTool(adAccountId: string, input: z.infer<typeof Prop
 
   if (error || !inserted) return { ok: false, error: error?.message ?? "Falha ao criar ação" };
 
+  // Em contas Autopilot, risk='low' pode ser auto-executada agora mesmo — o
+  // sweep é seguro de chamar mesmo fora do modo autopilot (é um no-op).
+  await runAutopilotSweep(adAccountId);
+
+  const { data: afterSweep } = await supabase.from("actions").select("status").eq("id", inserted.id).maybeSingle();
+
   return {
     ok: true,
     action_id: inserted.id,
-    message: "Ação criada como pendente no feed — precisa de aprovação humana no feed antes de qualquer execução.",
+    status: afterSweep?.status ?? "proposed",
+    message:
+      afterSweep?.status === "executed"
+        ? "Ação criada e já executada automaticamente pelo Autopilot (risco baixo)."
+        : "Ação criada como pendente no feed — precisa de aprovação humana no feed antes de qualquer execução.",
   };
 }
 

@@ -142,6 +142,9 @@ export default async function AccountDetailPage({
           <Link href={`/app/accounts/${id}/context`} className="text-sm underline underline-offset-4">
             Contexto de negócio
           </Link>
+          <Link href={`/app/accounts/${id}/settings`} className="text-sm underline underline-offset-4">
+            Configurações
+          </Link>
         </div>
       </div>
 

@@ -135,6 +135,26 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
     return { status: "failed", error: `Ação precisa estar 'approved' (status atual: ${typedAction.status})` };
   }
 
+  // Kill switch (PROJECT.md 6.5/2.2): conta pausada (ad_accounts.status) ou
+  // tenant suspenso pelo admin da plataforma (organizations.status) bloqueia
+  // qualquer execução, antes mesmo dos guardrails configuráveis.
+  const { data: killSwitchRowRaw } = await supabase
+    .from("ad_accounts")
+    .select("status, organizations(status)")
+    .eq("id", typedAction.ad_account_id)
+    .single();
+
+  const killSwitchRow = killSwitchRowRaw as { status: string; organizations: { status: string } | { status: string }[] | null } | null;
+  const orgRow = killSwitchRow?.organizations;
+  const orgStatus = Array.isArray(orgRow) ? orgRow[0]?.status : orgRow?.status;
+
+  if (killSwitchRow?.status !== "active" || orgStatus !== "active") {
+    const message = `Execução bloqueada: conta ou organização não está ativa (conta=${killSwitchRow?.status ?? "?"}, organização=${orgStatus ?? "?"})`;
+    await markFailed(actionId, message);
+    await writeAudit(typedAction.ad_account_id, null, "action_blocked_by_kill_switch", { action_id: actionId });
+    return { status: "blocked", violations: [message] };
+  }
+
   if (!EXECUTABLE_TYPES.has(typedAction.type)) {
     const message = "Tipo de ação não suportado para execução automática na V1";
     await markFailed(actionId, message);

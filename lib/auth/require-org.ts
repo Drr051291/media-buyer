@@ -47,3 +47,18 @@ export async function requireOrgContributor() {
   }
   return ctx;
 }
+
+/** Painel /admin (PROJECT.md 2.2): acesso exclusivo do time interno, via `platform_admins`. */
+export async function requirePlatformAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new UnauthorizedError("Não autenticado", 401);
+
+  const { data } = await supabase.from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+  if (!data) throw new UnauthorizedError("Acesso restrito ao time da plataforma", 403);
+
+  return { user };
+}

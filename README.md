@@ -3,13 +3,15 @@
 SaaS de IA para gestão de contas Meta Ads. Ver `PROJECT.md` para a especificação
 completa do produto (contexto para Claude Code / agentes).
 
-Estado atual: **Fase 1, Fase 2 e Fase 3 completas** — fundação (auth +
-multi-tenancy), wizard de conexão BYOT, `lib/meta/client.ts`, jobs de sync
-(entities/insights/backfill/breakdowns), dashboard de métricas, Business
-Context, Metric Engine + detectores de sinais, Reasoner (Claude) com Feed de
-Insights e relatório semanal, guardrails + Action Executor com
-aprovação/rejeição/rollback no feed, medição de resultado (D+4/D+7) e memória
-no prompt, e chat com o agente (tools read-only + `propose_action`).
+Estado atual: **Fases 1 a 4 completas** — fundação (auth + multi-tenancy),
+wizard de conexão BYOT, `lib/meta/client.ts`, jobs de sync (entities/insights/
+backfill/breakdowns), dashboard de métricas, Business Context, Metric Engine +
+detectores de sinais, Reasoner (Claude) com Feed de Insights e relatório
+semanal, guardrails + Action Executor com aprovação/rejeição/rollback no feed,
+medição de resultado (D+4/D+7) e memória no prompt, chat com o agente (tools
+read-only + `propose_action`), Autopilot para ações de risco baixo com
+notificações, e o painel `/admin` (tenants, saúde de tokens, jobs, custo de
+LLM, feature flags, kill switch).
 
 ## Stack
 
@@ -53,6 +55,10 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
      — `guardrails` ganha uma linha default via trigger sempre que uma conta é
      conectada; `actions.decision_note` guarda o motivo de rejeição (memória
      do agente)
+   - `feature_flags`, `notifications` + RLS (Fase 4) — feature flags só são
+     escritas por `platform_admins`; kill switch reaproveita
+     `organizations.status='suspended'` e `ad_accounts.status='paused'` (já
+     existiam desde a Fase 1/2, nunca usados até agora)
 
 3.1. Defina também `ANTHROPIC_API_KEY` no `.env.local` — o Reasoner e o
    relatório semanal chamam a API da Anthropic diretamente.
@@ -161,12 +167,30 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
   Claude Sonnet 5 — `get_metrics`, `get_business_context`, `get_action_history`
   e `run_signal_scan` são só leitura; `propose_action` cria um card pendente
   no feed (nunca executa nada na Meta).
+- **Autopilot** (`lib/engine/autopilot.ts`): em contas com
+  `autonomy_mode='autopilot'`, ações `risk='low'` são auto-aprovadas e
+  executadas assim que propostas (pelo job diário ou pelo chat) — ainda
+  passando pelos mesmos guardrails do Executor. `medium`/`high` continuam
+  pendentes de aprovação humana. Toda execução ou bloqueio gera uma
+  notificação (`/app/notifications`, com contador no menu lateral).
+- **Configurações da conta** (`/app/accounts/[id]/settings`): seletor de modo
+  de autonomia (Observador/Copiloto/Autopilot — Autopilot só aparece
+  liberado se o admin da plataforma habilitar a feature flag
+  `autopilot_enabled` do tenant) e formulário de guardrails (variação máxima
+  de budget, teto de spend diário, cooldown, entidades protegidas, janela de
+  execução, máximo de ações/dia).
+- **Painel `/admin`** (`platform_admins`, PROJECT.md 2.2): `tenants` (lista de
+  organizations com kill switch — suspender bloqueia toda sincronização e
+  execução do tenant), `tokens-health` (saúde de todos os tokens Meta),
+  `jobs` (fila de `sync_jobs` por status + falhas recentes), `llm-usage`
+  (custo de LLM agregado por tenant/finalidade nos últimos 30 dias) e `flags`
+  (toggle de feature flags por tenant, hoje só `autopilot_enabled`).
 
 ## O que ainda não foi implementado
 
-Fica para a Fase 4 do roadmap (`PROJECT.md` seção 10): Autopilot (execução
-automática de ações `risk=low` dentro dos guardrails) e o painel `/admin`
-(tenants, saúde de tokens, jobs, custo de LLM, feature flags, kill switch).
+Fica para a Fase 5 do roadmap (`PROJECT.md` seção 10): Stripe (assinatura por
+nº de contas conectadas + fair-use de LLM) e onboarding self-service com
+e-mails transacionais.
 
 ## Testes
 

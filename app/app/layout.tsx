@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { logout } from "./actions";
 
@@ -17,6 +18,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) {
     redirect("/login");
   }
+
+  const supabase = await createClient();
+  const { count: unreadCount } = activeOrg
+    ? await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", activeOrg.id)
+        .is("read_at", null)
+    : { count: 0 };
 
   return (
     <div className="flex min-h-screen flex-1">
@@ -35,6 +45,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               {item.label}
             </Link>
           ))}
+          <Link href="/app/notifications" className="rounded-md px-2 py-1.5 text-sm hover:bg-muted">
+            Notificações{unreadCount ? ` (${unreadCount})` : ""}
+          </Link>
         </nav>
         <form action={logout}>
           <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">

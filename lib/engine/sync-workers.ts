@@ -17,6 +17,7 @@ import { runDailyAnalysis, validateDailyAnalysis } from "./reasoner";
 import { recordLlmUsage } from "./llm-usage";
 import { buildActionMemory } from "./memory";
 import { measurePendingActionResults } from "./action-results";
+import { runAutopilotSweep } from "./autopilot";
 import type { BusinessContextProfile } from "./business-context";
 
 /**
@@ -468,6 +469,8 @@ export async function processOneDailyAnalysisChunk(): Promise<WorkerResult> {
       usage,
     });
 
+    const autopilot = await runAutopilotSweep(job.ad_account_id);
+
     await updateJobProgress(job.id, { status: "done", finished_at: new Date().toISOString() });
 
     return {
@@ -476,6 +479,7 @@ export async function processOneDailyAnalysisChunk(): Promise<WorkerResult> {
       insightsCount: validated.insights.length,
       actionsCount: validated.proposedActions.length,
       droppedCount: validated.droppedCount,
+      autopilot,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
