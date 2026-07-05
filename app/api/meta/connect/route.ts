@@ -89,6 +89,29 @@ export async function POST(request: Request) {
 
     if (accountsError) throw accountsError;
 
+    // Dispara os jobs de sync iniciais (PROJECT.md roadmap Fase 1 Etapa 4):
+    // estrutura da conta + backfill de 90 dias. Ambos rodam fatiados via
+    // /api/cron/sync-entities e /api/cron/sync-insights-backfill.
+    if (adAccounts && adAccounts.length > 0) {
+      const until = new Date();
+      const since = new Date(until);
+      since.setDate(since.getDate() - 90);
+      const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+      const { error: jobsError } = await supabase.from("sync_jobs").insert(
+        adAccounts.flatMap((a) => [
+          { ad_account_id: a.id, kind: "sync_entities", status: "pending", cursor: {} },
+          {
+            ad_account_id: a.id,
+            kind: "sync_insights_backfill",
+            status: "pending",
+            cursor: { phase: "submit", since: isoDate(since), until: isoDate(until) },
+          },
+        ]),
+      );
+      if (jobsError) throw jobsError;
+    }
+
     await supabase.from("audit_log").insert({
       org_id: orgId,
       actor: user.id,

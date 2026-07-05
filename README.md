@@ -3,13 +3,14 @@
 SaaS de IA para gestão de contas Meta Ads. Ver `PROJECT.md` para a especificação
 completa do produto (contexto para Claude Code / agentes).
 
-Estado atual: **Fase 1, Etapas 1-3** — fundação (auth + multi-tenancy), wizard
-de conexão BYOT e o wrapper `lib/meta/client.ts`.
+Estado atual: **Fase 1 completa** — fundação (auth + multi-tenancy), wizard de
+conexão BYOT, `lib/meta/client.ts`, jobs de sync (entities/insights/backfill/
+breakdowns) e dashboard de métricas com comparação de período.
 
 ## Stack
 
 Next.js 16 (App Router) + Tailwind v4 + shadcn/ui, Supabase (Postgres + Auth +
-Vault), Anthropic Claude (fases seguintes), Vitest.
+Vault + pg_cron), Anthropic Claude (fases seguintes), Vitest.
 
 ## Setup local
 
@@ -37,12 +38,23 @@ Vault), Anthropic Claude (fases seguintes), Vitest.
    - `meta_tokens`, `ad_accounts`, `sync_jobs`, `audit_log` + RLS
    - wrappers SQL para o Supabase Vault (`vault_create_secret` etc.),
      restritos a `service_role` — os tokens Meta nunca ficam em texto plano
+   - `entities`, `metrics_daily` + função de agregação adset/campanha
+     (`aggregate_recent_metrics_daily`, agendada via **pg_cron** — habilite a
+     extensão em Database > Extensions no dashboard do Supabase; sem ela a
+     migration só avisa e segue, mas o rollup precisa ser chamado manualmente)
+   - `claim_next_sync_job`: reivindicação atômica de jobs pendentes
+     (FOR UPDATE SKIP LOCKED), usada pelos workers de cron
 
 4. Suba o servidor:
 
    ```bash
    npm run dev
    ```
+
+5. Em produção (Vercel), `vercel.json` já define os crons. Defina `CRON_SECRET`
+   no projeto Vercel — ele envia automaticamente `Authorization: Bearer
+   $CRON_SECRET` nas chamadas agendadas. Ajuste a frequência conforme seu
+   plano (Hobby só permite 1x/dia).
 
 ## O que já funciona
 
@@ -56,21 +68,36 @@ Vault), Anthropic Claude (fases seguintes), Vitest.
   rate limit (`x-business-use-case-usage`, `x-fb-ads-insights-throttle`),
   backoff exponencial em `code=4`/`code=17`/`subcode=1504022` e Batch API
   (até 50 chamadas).
-- **`/api/cron/token-health`**: revalida todos os tokens diariamente
-  (protegido por `CRON_SECRET`), marca contas como `disconnected` quando o
-  token cai.
+- **Jobs de sync** (`/api/cron/sync-*`), todos fatiados e retomáveis via
+  `sync_jobs.cursor` (nunca puxam tudo numa invocação só):
+  - `sync-entities`: estrutura (campanhas/adsets/ads), 1 página de 1 nível
+    por invocação.
+  - `sync-insights-daily`: últimos 7 dias de insights nível ad, 1 conta por
+    invocação.
+  - `sync-insights-backfill`: 90 dias via Async Insights Jobs da Meta —
+    submit/poll/download em invocações separadas; disparado automaticamente
+    ao conectar uma conta.
+  - `sync-breakdowns`: publisher_platform/platform_position/age/gender, uma
+    dimensão por invocação.
+  - `token-health`: revalida todos os tokens diariamente, marca contas como
+    `disconnected` quando o token cai.
+  - Agregação adset/campanha a partir das linhas nível ad roda no Postgres
+    via pg_cron (`aggregate_recent_metrics_daily`), não em código de aplicação.
+- **Dashboard de métricas** (`/app/accounts/[id]`): drill-down
+  campanha → adset → ad, comparação 7d vs 7d anterior (spend, CTR, CPM, CPA,
+  ROAS), sempre lendo do Postgres (`metrics_daily`), nunca da Meta em tempo
+  real.
 
 ## O que ainda não foi implementado
 
-Fica para as próximas etapas do roadmap (`PROJECT.md` seção 10): jobs de sync
-de entidades/insights, dashboard de métricas, Business Context, Metric
-Engine + detectores de sinais, Reasoner (Claude), Action Executor, chat,
-autopilot e painel `/admin`.
+Fica para as próximas fases do roadmap (`PROJECT.md` seção 10): Business
+Context, Metric Engine + detectores de sinais, Reasoner (Claude), Action
+Executor com guardrails, chat, autopilot e painel `/admin`.
 
 ## Testes
 
 ```bash
-npm test     # vitest — lib/meta/rate-limit.ts, client.ts, debug-token.ts
+npm test     # vitest — lib/meta/*, lib/engine/*
 npm run lint
 npm run build
 ```
