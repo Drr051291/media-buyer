@@ -43,7 +43,7 @@ export function computeCostUsd(model: string, usage: LlmCallUsage): number {
 export interface RecordLlmUsageParams {
   orgId: string;
   adAccountId: string | null;
-  purpose: "daily_analysis" | "weekly_report";
+  purpose: "daily_analysis" | "weekly_report" | "chat";
   model: string;
   usage: LlmCallUsage;
 }

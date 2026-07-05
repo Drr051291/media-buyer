@@ -3,11 +3,13 @@
 SaaS de IA para gestão de contas Meta Ads. Ver `PROJECT.md` para a especificação
 completa do produto (contexto para Claude Code / agentes).
 
-Estado atual: **Fase 1 e Fase 2 completas** — fundação (auth + multi-tenancy),
-wizard de conexão BYOT, `lib/meta/client.ts`, jobs de sync (entities/insights/
-backfill/breakdowns), dashboard de métricas, Business Context, Metric Engine +
-detectores de sinais, Reasoner (Claude) com Feed de Insights e relatório
-semanal.
+Estado atual: **Fase 1, Fase 2 e Fase 3 completas** — fundação (auth +
+multi-tenancy), wizard de conexão BYOT, `lib/meta/client.ts`, jobs de sync
+(entities/insights/backfill/breakdowns), dashboard de métricas, Business
+Context, Metric Engine + detectores de sinais, Reasoner (Claude) com Feed de
+Insights e relatório semanal, guardrails + Action Executor com
+aprovação/rejeição/rollback no feed, medição de resultado (D+4/D+7) e memória
+no prompt, e chat com o agente (tools read-only + `propose_action`).
 
 ## Stack
 
@@ -47,6 +49,10 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
    - `claim_next_sync_job`: reivindicação atômica de jobs pendentes
      (FOR UPDATE SKIP LOCKED), usada pelos workers de cron
    - `business_context`, `snapshots`, `insights`, `llm_usage` + RLS (Fase 2)
+   - `guardrails`, `actions`, `action_results`, `chat_messages` + RLS (Fase 3)
+     — `guardrails` ganha uma linha default via trigger sempre que uma conta é
+     conectada; `actions.decision_note` guarda o motivo de rejeição (memória
+     do agente)
 
 3.1. Defina também `ANTHROPIC_API_KEY` no `.env.local` — o Reasoner e o
    relatório semanal chamam a API da Anthropic diretamente.
@@ -123,21 +129,44 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
   (`output_config.format` com Zod). Validação pós-LLM descarta insights/ações
   que referenciam entidades inexistentes ou violam o guardrail padrão de
   variação de budget (±20%) — nunca a análise inteira.
-- **Feed de Insights** (`/app/accounts/[id]/insights`): mostra o diagnóstico e
-  as ações propostas do dia, somente leitura — execução chega na Fase 3.
+- **Feed de Insights** (`/app/accounts/[id]/insights`): mostra o diagnóstico,
+  as ações propostas (com botões Aprovar/Rejeitar) e o histórico de ações
+  decididas (com Reverter para as executadas e o resultado medido).
 - **Relatório semanal** (`/app/reports/[id]`): agrega os últimos 7
   diagnósticos diários e pede um resumo em linguagem de negócio, gerado sob
   demanda (não persistido).
-- **`llm_usage`**: toda chamada ao Claude (análise diária, relatório) registra
-  tokens de input/output/cache e custo estimado em USD.
+- **`llm_usage`**: toda chamada ao Claude (análise diária, relatório, chat)
+  registra tokens de input/output/cache e custo estimado em USD.
 - O job `daily_analysis` roda dentro do mesmo worker unificado `/api/cron/sync`
   (1 conta por chunk, como os demais jobs).
+- **Guardrails + Action Executor** (`lib/engine/guardrails.ts`,
+  `lib/engine/executor.ts`): variação máxima de budget, teto de spend diário,
+  cooldown, entidades protegidas, janela de execução e máximo de ações/dia —
+  todos verificados antes de qualquer mutação na Meta
+  (`lib/meta/mutations.ts`: pausar/reativar, ajustar budget, duplicar adset).
+  Toda execução guarda o `previous_state` para rollback (`revertAction`) e
+  audita em `audit_log`.
+- **Aprovação/rejeição/rollback** (`/api/actions/[id]/{approve,reject,revert}`):
+  respeitam a RLS (`is_org_contributor` — viewer não decide nada) e o modo
+  Observador (nunca executa, mesmo se aprovado). Rejeitar aceita um motivo
+  opcional (`decision_note`), usado depois como memória do agente.
+- **Medição de resultado** (`lib/engine/action-results.ts`, job
+  `measure_action_results`): mede o CPA da entidade no evento real da conta em
+  D0 (véspera da execução), D+4 e D+7, classifica o veredito
+  (`improved`/`neutral`/`worsened`) e grava em `action_results`.
+- **Memória do agente** (`lib/engine/memory.ts`): resume as últimas ações
+  executadas (com resultado medido) e rejeitadas (com motivo) — injetado no
+  prompt do Reasoner a cada análise diária.
+- **Chat com o agente** (`/app/accounts/[id]/chat`, `/api/chat`): tool use com
+  Claude Sonnet 5 — `get_metrics`, `get_business_context`, `get_action_history`
+  e `run_signal_scan` são só leitura; `propose_action` cria um card pendente
+  no feed (nunca executa nada na Meta).
 
 ## O que ainda não foi implementado
 
-Fica para a Fase 3 do roadmap (`PROJECT.md` seção 10): Action Executor com
-guardrails configuráveis e execução real na Meta, aprovação no feed,
-rollback, chat com o agente, autopilot e painel `/admin`.
+Fica para a Fase 4 do roadmap (`PROJECT.md` seção 10): Autopilot (execução
+automática de ações `risk=low` dentro dos guardrails) e o painel `/admin`
+(tenants, saúde de tokens, jobs, custo de LLM, feature flags, kill switch).
 
 ## Testes
 

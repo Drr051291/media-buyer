@@ -7,7 +7,8 @@ export type SyncJobKind =
   | "sync_insights_backfill"
   | "sync_breakdowns"
   | "token_health"
-  | "daily_analysis";
+  | "daily_analysis"
+  | "measure_action_results";
 
 export interface SyncJobRow {
   id: string;

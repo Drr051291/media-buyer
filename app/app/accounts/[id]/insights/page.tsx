@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProposedActionButtons, RevertActionButton } from "./action-buttons";
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
 const SEVERITY_VARIANT: Record<string, "destructive" | "secondary" | "default"> = {
@@ -16,19 +17,50 @@ interface EntityRef {
   name?: string;
 }
 
-interface ProposedAction {
+interface ActionResultRow {
+  metric: string;
+  baseline_value: number | null;
+  d4_value: number | null;
+  d7_value: number | null;
+  delta_pct: number | null;
+  verdict: string | null;
+}
+
+interface ActionRow {
+  id: string;
   type: string;
   entity_ref: EntityRef;
-  reasoning: string;
-  expected_impact: string;
-  risk: "low" | "medium" | "high";
-  priority: number;
+  reasoning: string | null;
+  expected_impact: string | null;
+  risk: "low" | "medium" | "high" | null;
+  priority: number | null;
+  status: string;
+  error: string | null;
+  decision_note: string | null;
+  proposed_at: string;
+  action_results: ActionResultRow[] | ActionResultRow | null;
 }
 
 const RISK_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
   low: "default",
   medium: "secondary",
   high: "destructive",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  approved: "Aprovada — aguardando execução",
+  executed: "Executada",
+  failed: "Falhou",
+  rejected: "Rejeitada",
+  reverted: "Revertida",
+};
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
+  approved: "secondary",
+  executed: "default",
+  failed: "destructive",
+  rejected: "secondary",
+  reverted: "secondary",
 };
 
 export default async function InsightsFeedPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,7 +72,7 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
 
   const { data: snapshot } = await supabase
     .from("snapshots")
-    .select("id, date, diagnosis, health_score, proposed_actions, llm_model")
+    .select("id, date, diagnosis, health_score, llm_model")
     .eq("ad_account_id", id)
     .order("date", { ascending: false })
     .limit(1)
@@ -56,9 +88,29 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
   const insights = [...(insightsRaw ?? [])].sort(
     (a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9),
   );
-  const proposedActions = ((snapshot?.proposed_actions as ProposedAction[] | null) ?? []).sort(
-    (a, b) => a.priority - b.priority,
-  );
+
+  const { data: proposedRaw } = await supabase
+    .from("actions")
+    .select(
+      "id, type, entity_ref, reasoning, expected_impact, risk, priority, status, error, decision_note, proposed_at, action_results(metric, baseline_value, d4_value, d7_value, delta_pct, verdict)",
+    )
+    .eq("ad_account_id", id)
+    .eq("status", "proposed")
+    .order("priority", { ascending: true });
+
+  const proposedActions = (proposedRaw ?? []) as ActionRow[];
+
+  const { data: historyRaw } = await supabase
+    .from("actions")
+    .select(
+      "id, type, entity_ref, reasoning, expected_impact, risk, priority, status, error, decision_note, proposed_at, action_results(metric, baseline_value, d4_value, d7_value, delta_pct, verdict)",
+    )
+    .eq("ad_account_id", id)
+    .neq("status", "proposed")
+    .order("proposed_at", { ascending: false })
+    .limit(20);
+
+  const history = (historyRaw ?? []) as ActionRow[];
 
   if (!snapshot) {
     return (
@@ -123,24 +175,65 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Ações propostas ({proposedActions.length})</h2>
         <p className="text-xs text-muted-foreground">
-          Somente leitura nesta fase — execução chega na Fase 3 (Copiloto).
+          Aprovar dispara a execução na Meta (modo Copiloto) respeitando os guardrails da conta.
         </p>
         {proposedActions.length === 0 && (
           <p className="text-sm text-muted-foreground">Nenhuma ação proposta hoje.</p>
         )}
-        {proposedActions.map((action, i) => (
-          <Card key={i}>
+        {proposedActions.map((action) => (
+          <Card key={action.id}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-sm font-medium">
                 <span>
                   {action.type} — {action.entity_ref?.name ?? "Conta"}
                 </span>
-                <Badge variant={RISK_VARIANT[action.risk] ?? "default"}>risco {action.risk}</Badge>
+                <Badge variant={RISK_VARIANT[action.risk ?? "low"] ?? "default"}>risco {action.risk}</Badge>
               </CardTitle>
               <CardDescription>{action.reasoning}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-3">
               <p className="text-xs text-muted-foreground">Impacto esperado: {action.expected_impact}</p>
+              <ProposedActionButtons actionId={action.id} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Histórico de ações</h2>
+        {history.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhuma ação decidida ainda.</p>
+        )}
+        {history.map((action) => (
+          <Card key={action.id}>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-sm font-medium">
+                <span>
+                  {action.type} — {action.entity_ref?.name ?? "Conta"}
+                </span>
+                <Badge variant={STATUS_VARIANT[action.status] ?? "default"}>
+                  {STATUS_LABEL[action.status] ?? action.status}
+                </Badge>
+              </CardTitle>
+              <CardDescription>{action.reasoning}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {action.error && <p className="text-xs text-destructive">Erro: {action.error}</p>}
+              {action.status === "rejected" && action.decision_note && (
+                <p className="text-xs text-muted-foreground">Motivo: {action.decision_note}</p>
+              )}
+              {(() => {
+                const result = Array.isArray(action.action_results) ? action.action_results[0] : action.action_results;
+                if (!result || result.verdict == null) return null;
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Resultado ({result.metric}): baseline {result.baseline_value ?? "?"} → atual{" "}
+                    {result.d7_value ?? result.d4_value ?? "?"} ({result.verdict}
+                    {result.delta_pct != null ? `, ${result.delta_pct.toFixed(1)}%` : ""})
+                  </p>
+                );
+              })()}
+              {action.status === "executed" && <RevertActionButton actionId={action.id} />}
             </CardContent>
           </Card>
         ))}

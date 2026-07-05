@@ -26,6 +26,7 @@ create index if not exists entities_level_idx on entities(ad_account_id, level);
 
 alter table entities enable row level security;
 
+drop policy if exists "members read own org entities" on entities;
 create policy "members read own org entities" on entities
   for select using (
     is_platform_admin() or
@@ -66,6 +67,7 @@ create index if not exists metrics_daily_entity_idx on metrics_daily(ad_account_
 
 alter table metrics_daily enable row level security;
 
+drop policy if exists "members read own org metrics_daily" on metrics_daily;
 create policy "members read own org metrics_daily" on metrics_daily
   for select using (
     is_platform_admin() or

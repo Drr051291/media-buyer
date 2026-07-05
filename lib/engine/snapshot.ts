@@ -15,6 +15,7 @@ import {
 } from "./metrics";
 import { runSignalScan, type Signal } from "./signals";
 import type { EntityLevel, EntityRef } from "./signals/types";
+import type { DailyAnalysisOutput } from "./reasoner";
 
 const SNAPSHOT_WINDOW_DAYS = 30;
 const DEFAULT_CONVERSION_EVENT = "purchase";
@@ -226,7 +227,7 @@ export async function buildAccountSnapshot(adAccountId: string, asOfIso: string)
 export interface SnapshotAnalysisResult {
   diagnosis: string;
   healthScore: number;
-  proposedActions: unknown[];
+  proposedActions: DailyAnalysisOutput["proposed_actions"];
   model: string;
 }
 
@@ -286,6 +287,50 @@ export async function saveSnapshotWithAnalysis(
       })),
     );
     if (insightsError) throw insightsError;
+  }
+
+  if (analysis.proposedActions.length > 0) {
+    // idempotency_key evita reproposta duplicada da mesma ação todo dia
+    // enquanto ela seguir pendente. Ações já decididas pelo gestor (approved/
+    // rejected/executed/...) NUNCA são sobrescritas pelo upsert — só as que
+    // ainda estão 'proposed' (ou que ainda não existem).
+    const withKeys = analysis.proposedActions.map((a) => ({
+      ...a,
+      idempotencyKey: `${adAccountId}:${asOfIso}:${a.type}:${a.entity_ref.id}`,
+    }));
+
+    const { data: existing } = await supabase
+      .from("actions")
+      .select("idempotency_key, status")
+      .in(
+        "idempotency_key",
+        withKeys.map((a) => a.idempotencyKey),
+      );
+
+    const decidedKeys = new Set(
+      (existing ?? []).filter((e) => e.status !== "proposed").map((e) => e.idempotency_key),
+    );
+    const toUpsert = withKeys.filter((a) => !decidedKeys.has(a.idempotencyKey));
+
+    if (toUpsert.length > 0) {
+      const { error: actionsError } = await supabase.from("actions").upsert(
+        toUpsert.map((a) => ({
+          ad_account_id: adAccountId,
+          snapshot_id: snapshotId,
+          type: a.type,
+          entity_ref: a.entity_ref,
+          params: a.params,
+          reasoning: a.reasoning,
+          expected_impact: a.expected_impact,
+          risk: a.risk,
+          priority: a.priority,
+          status: "proposed",
+          idempotency_key: a.idempotencyKey,
+        })),
+        { onConflict: "idempotency_key" },
+      );
+      if (actionsError) throw actionsError;
+    }
   }
 
   return snapshotId;

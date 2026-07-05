@@ -36,17 +36,20 @@ as $$
   );
 $$;
 
+drop policy if exists "members read own org business_context" on business_context;
 create policy "members read own org business_context" on business_context
   for select using (
     is_platform_admin() or
     exists (select 1 from ad_accounts a where a.id = business_context.ad_account_id and is_org_member(a.org_id))
   );
 
+drop policy if exists "contributors write own org business_context" on business_context;
 create policy "contributors write own org business_context" on business_context
   for insert with check (
     exists (select 1 from ad_accounts a where a.id = business_context.ad_account_id and is_org_contributor(a.org_id))
   );
 
+drop policy if exists "contributors update own org business_context" on business_context;
 create policy "contributors update own org business_context" on business_context
   for update using (
     exists (select 1 from ad_accounts a where a.id = business_context.ad_account_id and is_org_contributor(a.org_id))
@@ -74,6 +77,7 @@ create index if not exists snapshots_ad_account_id_idx on snapshots(ad_account_i
 
 alter table snapshots enable row level security;
 
+drop policy if exists "members read own org snapshots" on snapshots;
 create policy "members read own org snapshots" on snapshots
   for select using (
     is_platform_admin() or
@@ -99,6 +103,7 @@ create index if not exists insights_snapshot_id_idx on insights(snapshot_id);
 
 alter table insights enable row level security;
 
+drop policy if exists "members read own org insights" on insights;
 create policy "members read own org insights" on insights
   for select using (
     is_platform_admin() or
@@ -126,6 +131,7 @@ create index if not exists llm_usage_org_id_idx on llm_usage(org_id, created_at 
 
 alter table llm_usage enable row level security;
 
+drop policy if exists "members read own org llm_usage" on llm_usage;
 create policy "members read own org llm_usage" on llm_usage
   for select using (is_org_member(org_id) or is_platform_admin());
 

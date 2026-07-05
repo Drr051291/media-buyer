@@ -38,3 +38,12 @@ export async function requireOrgAdmin() {
   }
   return ctx;
 }
+
+/** Espelha `is_org_contributor` (SQL): owner/admin/analyst decidem ações; viewer só lê. */
+export async function requireOrgContributor() {
+  const ctx = await requireOrgMember();
+  if (ctx.role !== "owner" && ctx.role !== "admin" && ctx.role !== "analyst") {
+    throw new UnauthorizedError("Viewer não pode aprovar, rejeitar ou reverter ações", 403);
+  }
+  return ctx;
+}

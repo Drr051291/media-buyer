@@ -111,18 +111,23 @@ alter table organizations enable row level security;
 alter table org_members enable row level security;
 alter table platform_admins enable row level security;
 
+drop policy if exists "members read own org" on organizations;
 create policy "members read own org" on organizations
   for select using (is_org_member(id) or is_platform_admin());
 
+drop policy if exists "admins update own org" on organizations;
 create policy "admins update own org" on organizations
   for update using (is_org_admin(id) or is_platform_admin());
 
+drop policy if exists "members read org_members of own org" on org_members;
 create policy "members read org_members of own org" on org_members
   for select using (is_org_member(org_id) or is_platform_admin());
 
+drop policy if exists "admins manage org_members" on org_members;
 create policy "admins manage org_members" on org_members
   for all using (is_org_admin(org_id) or is_platform_admin())
   with check (is_org_admin(org_id) or is_platform_admin());
 
+drop policy if exists "platform admins read platform_admins" on platform_admins;
 create policy "platform admins read platform_admins" on platform_admins
   for select using (is_platform_admin());

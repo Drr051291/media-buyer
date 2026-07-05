@@ -136,6 +136,9 @@ export default async function AccountDetailPage({
           <Link href={`/app/accounts/${id}/insights`} className="text-sm underline underline-offset-4">
             Insights
           </Link>
+          <Link href={`/app/accounts/${id}/chat`} className="text-sm underline underline-offset-4">
+            Chat
+          </Link>
           <Link href={`/app/accounts/${id}/context`} className="text-sm underline underline-offset-4">
             Contexto de negócio
           </Link>

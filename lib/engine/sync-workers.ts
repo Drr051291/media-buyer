@@ -15,6 +15,8 @@ import { claimNextJob, updateJobProgress, resolveAdAccountForSync, type SyncJobK
 import { buildAccountSnapshot, saveSnapshotWithAnalysis } from "./snapshot";
 import { runDailyAnalysis, validateDailyAnalysis } from "./reasoner";
 import { recordLlmUsage } from "./llm-usage";
+import { buildActionMemory } from "./memory";
+import { measurePendingActionResults } from "./action-results";
 import type { BusinessContextProfile } from "./business-context";
 
 /**
@@ -441,7 +443,8 @@ export async function processOneDailyAnalysisChunk(): Promise<WorkerResult> {
     const snapshotPayload = await buildAccountSnapshot(job.ad_account_id, asOfIso);
     const businessContext = (contextRow?.profile as BusinessContextProfile | undefined) ?? null;
 
-    const { output, usage, model } = await runDailyAnalysis({ businessContext, snapshot: snapshotPayload });
+    const memory = await buildActionMemory(job.ad_account_id);
+    const { output, usage, model } = await runDailyAnalysis({ businessContext, snapshot: snapshotPayload, memory });
     const validated = validateDailyAnalysis(output, snapshotPayload);
 
     await saveSnapshotWithAnalysis(
@@ -481,6 +484,28 @@ export async function processOneDailyAnalysisChunk(): Promise<WorkerResult> {
   }
 }
 
+/**
+ * Job de medição de resultado (PROJECT.md 6.5): para cada conta, varre as
+ * actions executadas que ainda precisam de baseline/D+4/D+7 e grava em
+ * `action_results`. Uma conta inteira por chunk, como daily_analysis — o
+ * volume de actions executadas por conta é baixo o bastante para não
+ * precisar de cursor/paginação.
+ */
+export async function processOneMeasureActionResultsChunk(): Promise<WorkerResult> {
+  const job = await claimNextJob("measure_action_results");
+  if (!job) return { processed: false, reason: "sem jobs pendentes" };
+
+  try {
+    const { measured } = await measurePendingActionResults(job.ad_account_id);
+    await updateJobProgress(job.id, { status: "done", finished_at: new Date().toISOString() });
+    return { processed: true, measured };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await updateJobProgress(job.id, { status: "failed", error: message });
+    return { processed: true, error: message };
+  }
+}
+
 const CHUNK_PROCESSORS: Record<
   Exclude<SyncJobKind, "token_health">,
   () => Promise<WorkerResult>
@@ -490,6 +515,7 @@ const CHUNK_PROCESSORS: Record<
   sync_insights_backfill: processOneBackfillChunk,
   sync_breakdowns: processOneBreakdownsChunk,
   daily_analysis: processOneDailyAnalysisChunk,
+  measure_action_results: processOneMeasureActionResultsChunk,
 };
 
 export const CHUNKED_JOB_KINDS = Object.keys(CHUNK_PROCESSORS) as Exclude<SyncJobKind, "token_health">[];

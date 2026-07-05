@@ -151,32 +151,42 @@ alter table ad_accounts enable row level security;
 alter table sync_jobs enable row level security;
 alter table audit_log enable row level security;
 
+drop policy if exists "members read own org meta_tokens" on meta_tokens;
 create policy "members read own org meta_tokens" on meta_tokens
   for select using (is_org_member(org_id) or is_platform_admin());
 
+drop policy if exists "admins manage own org meta_tokens" on meta_tokens;
 create policy "admins manage own org meta_tokens" on meta_tokens
   for insert with check (is_org_admin(org_id));
+drop policy if exists "admins update own org meta_tokens" on meta_tokens;
 create policy "admins update own org meta_tokens" on meta_tokens
   for update using (is_org_admin(org_id));
+drop policy if exists "admins delete own org meta_tokens" on meta_tokens;
 create policy "admins delete own org meta_tokens" on meta_tokens
   for delete using (is_org_admin(org_id));
 
+drop policy if exists "members read own org ad_accounts" on ad_accounts;
 create policy "members read own org ad_accounts" on ad_accounts
   for select using (is_org_member(org_id) or is_platform_admin());
 
+drop policy if exists "admins manage own org ad_accounts" on ad_accounts;
 create policy "admins manage own org ad_accounts" on ad_accounts
   for insert with check (is_org_admin(org_id));
+drop policy if exists "admins update own org ad_accounts" on ad_accounts;
 create policy "admins update own org ad_accounts" on ad_accounts
   for update using (is_org_admin(org_id));
+drop policy if exists "admins delete own org ad_accounts" on ad_accounts;
 create policy "admins delete own org ad_accounts" on ad_accounts
   for delete using (is_org_admin(org_id));
 
+drop policy if exists "members read own org sync_jobs" on sync_jobs;
 create policy "members read own org sync_jobs" on sync_jobs
   for select using (
     is_platform_admin() or
     exists (select 1 from ad_accounts a where a.id = sync_jobs.ad_account_id and is_org_member(a.org_id))
   );
 
+drop policy if exists "members read own org audit_log" on audit_log;
 create policy "members read own org audit_log" on audit_log
   for select using (is_org_member(org_id) or is_platform_admin());
 
