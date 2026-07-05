@@ -88,6 +88,17 @@ export function filterWindow(rows: AdDailyRow[], asOfIso: string, days: number):
 
 export function summarizeWindow(rows: AdDailyRow[]): EntityWindowSummary {
   const derived = deriveMetrics(sumMetrics(rows));
+  // LIMITAÇÃO CONHECIDA: reach é somado por dia, mas reach é contagem de
+  // usuários ÚNICOS — o mesmo usuário visto em dois dias da janela é
+  // contado duas vezes aqui. Isso infla o denominador e por consequência
+  // SUBESTIMA frequency sistematicamente numa janela de vários dias (o
+  // valor real de Ads Manager, calculado sobre reach único da janela
+  // inteira, é sempre >= este). Corrigir de verdade exigiria buscar reach
+  // agregado por período direto da Meta (sem time_increment=1), uma
+  // chamada extra por janela — fora do escopo do armazenamento diário
+  // atual. CREATIVE_FATIGUE pode deixar de disparar em fadiga real por
+  // causa disso; os thresholds do detector não foram recalibrados para
+  // compensar.
   const reach = rows.reduce((sum, r) => sum + r.reach, 0);
   const frequency = reach > 0 ? derived.impressions / reach : null;
   const daysWithData = new Set(rows.map((r) => r.date)).size;
@@ -181,11 +192,16 @@ export function shareOfSpend(entitySpend7d: number, parentSpend7d: number): numb
 /**
  * spend do dia > 2 desvios-padrão da média 30d (usado pelo detector
  * SPEND_ANOMALY). Amostra populacional simples (30 dias é a janela toda).
+ * Exige também uma variação mínima (10% da média, ou R$1 se a média for
+ * baixa/zero) — sem isso, um histórico com desvio-padrão zero (budget fixo
+ * todo dia) dispararia o sinal por causa de um único centavo de diferença.
  */
 export function isSpendAnomaly(dailySpend: number[], todaySpend: number): boolean {
   if (dailySpend.length === 0) return false;
   const mean = dailySpend.reduce((a, b) => a + b, 0) / dailySpend.length;
   const variance = dailySpend.reduce((sum, v) => sum + (v - mean) ** 2, 0) / dailySpend.length;
   const stdDev = Math.sqrt(variance);
-  return Math.abs(todaySpend - mean) > 2 * stdDev;
+  const diff = Math.abs(todaySpend - mean);
+  const minMeaningfulDiff = Math.max(mean * 0.1, 1);
+  return diff > 2 * stdDev && diff > minMeaningfulDiff;
 }

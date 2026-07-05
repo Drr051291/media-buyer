@@ -150,4 +150,14 @@ describe("isSpendAnomaly", () => {
     expect(isSpendAnomaly([], 100)).toBe(false);
     expect(isSpendAnomaly([100, 100, 100], 100)).toBe(false);
   });
+
+  it("não dispara por ruído de centavos quando o desvio-padrão é zero (budget fixo)", () => {
+    const history = Array.from({ length: 30 }, () => 50);
+    expect(isSpendAnomaly(history, 50.01)).toBe(false);
+  });
+
+  it("dispara com desvio-padrão zero se a variação for grande o bastante", () => {
+    const history = Array.from({ length: 30 }, () => 50);
+    expect(isSpendAnomaly(history, 60)).toBe(true);
+  });
 });

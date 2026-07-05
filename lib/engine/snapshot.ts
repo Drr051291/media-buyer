@@ -105,7 +105,11 @@ export async function buildAccountSnapshot(adAccountId: string, asOfIso: string)
         .eq("ad_account_id", adAccountId)
         .eq("entity_level", "ad")
         .eq("breakdown_key", "all")
-        .gte("date", shiftIsoDate(asOfIso, -(SNAPSHOT_WINDOW_DAYS - 1)))
+        // +1 dia além da janela de 30d das métricas: o detector SPEND_ANOMALY
+        // precisa de 30 dias de histórico ANTES de hoje (asOf-30..asOf-1),
+        // não dos últimos 30 dias incluindo hoje — sem esse dia extra o mais
+        // antigo do histórico vira um spend=0 fabricado todo santo dia.
+        .gte("date", shiftIsoDate(asOfIso, -SNAPSHOT_WINDOW_DAYS))
         .lte("date", asOfIso),
     ]);
 
@@ -290,47 +294,31 @@ export async function saveSnapshotWithAnalysis(
   }
 
   if (analysis.proposedActions.length > 0) {
-    // idempotency_key evita reproposta duplicada da mesma ação todo dia
-    // enquanto ela seguir pendente. Ações já decididas pelo gestor (approved/
-    // rejected/executed/...) NUNCA são sobrescritas pelo upsert — só as que
-    // ainda estão 'proposed' (ou que ainda não existem).
-    const withKeys = analysis.proposedActions.map((a) => ({
-      ...a,
-      idempotencyKey: `${adAccountId}:${asOfIso}:${a.type}:${a.entity_ref.id}`,
+    // idempotency_key evita reproposta duplicada da mesma ação todo dia.
+    // ignoreDuplicates faz um INSERT ... ON CONFLICT DO NOTHING atômico no
+    // banco: uma action já existente sob a mesma chave nunca é tocada, seja
+    // qual for seu status (proposed/approved/rejected/executed/...) — ao
+    // contrário de um SELECT-depois-UPSERT separados, não há janela de
+    // corrida em que uma decisão do gestor feita entre os dois passos seria
+    // sobrescrita de volta para 'proposed'.
+    const rows = analysis.proposedActions.map((a) => ({
+      ad_account_id: adAccountId,
+      snapshot_id: snapshotId,
+      type: a.type,
+      entity_ref: a.entity_ref,
+      params: a.params,
+      reasoning: a.reasoning,
+      expected_impact: a.expected_impact,
+      risk: a.risk,
+      priority: a.priority,
+      status: "proposed",
+      idempotency_key: `${adAccountId}:${asOfIso}:${a.type}:${a.entity_ref.id}`,
     }));
 
-    const { data: existing } = await supabase
+    const { error: actionsError } = await supabase
       .from("actions")
-      .select("idempotency_key, status")
-      .in(
-        "idempotency_key",
-        withKeys.map((a) => a.idempotencyKey),
-      );
-
-    const decidedKeys = new Set(
-      (existing ?? []).filter((e) => e.status !== "proposed").map((e) => e.idempotency_key),
-    );
-    const toUpsert = withKeys.filter((a) => !decidedKeys.has(a.idempotencyKey));
-
-    if (toUpsert.length > 0) {
-      const { error: actionsError } = await supabase.from("actions").upsert(
-        toUpsert.map((a) => ({
-          ad_account_id: adAccountId,
-          snapshot_id: snapshotId,
-          type: a.type,
-          entity_ref: a.entity_ref,
-          params: a.params,
-          reasoning: a.reasoning,
-          expected_impact: a.expected_impact,
-          risk: a.risk,
-          priority: a.priority,
-          status: "proposed",
-          idempotency_key: a.idempotencyKey,
-        })),
-        { onConflict: "idempotency_key" },
-      );
-      if (actionsError) throw actionsError;
-    }
+      .upsert(rows, { onConflict: "idempotency_key", ignoreDuplicates: true });
+    if (actionsError) throw actionsError;
   }
 
   return snapshotId;

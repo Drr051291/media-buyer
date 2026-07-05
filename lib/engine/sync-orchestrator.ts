@@ -1,4 +1,5 @@
 import "server-only";
+import { timingSafeEqual } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export type SyncJobKind =
@@ -122,7 +123,21 @@ export async function resolveAdAccountForSync(adAccountId: string): Promise<AdAc
   return { id: account.id, metaAccountId: account.meta_account_id, accessToken };
 }
 
+/**
+ * Falha fechado se CRON_SECRET não estiver configurado (nunca aceita
+ * "Bearer undefined") e usa comparação em tempo constante para evitar
+ * timing attack no segredo.
+ */
 export function requireCronSecret(request: Request): boolean {
-  const authHeader = request.headers.get("authorization");
-  return authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return false;
+
+  const authHeader = request.headers.get("authorization") ?? "";
+  const expectedHeader = `Bearer ${expected}`;
+
+  const provided = Buffer.from(authHeader);
+  const wanted = Buffer.from(expectedHeader);
+  if (provided.length !== wanted.length) return false;
+
+  return timingSafeEqual(provided, wanted);
 }

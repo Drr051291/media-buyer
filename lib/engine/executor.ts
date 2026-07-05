@@ -135,6 +135,22 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
     return { status: "failed", error: `Ação precisa estar 'approved' (status atual: ${typedAction.status})` };
   }
 
+  // Claim atômico: só avança se conseguir mover approved -> executing agora
+  // mesmo. Duas invocações concorrentes (retry de cron, autopilot correndo
+  // junto com uma aprovação manual) nunca executam a mesma action duas vezes
+  // — a segunda encontra 0 linhas afetadas e desiste sem chamar a Meta.
+  const { data: claimed } = await supabase
+    .from("actions")
+    .update({ status: "executing" })
+    .eq("id", actionId)
+    .eq("status", "approved")
+    .select("id")
+    .maybeSingle();
+
+  if (!claimed) {
+    return { status: "failed", error: "Ação já está sendo executada por outra invocação" };
+  }
+
   // Kill switch (PROJECT.md 6.5/2.2): conta pausada (ad_accounts.status) ou
   // tenant suspenso pelo admin da plataforma (organizations.status) bloqueia
   // qualquer execução, antes mesmo dos guardrails configuráveis.
@@ -193,14 +209,65 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
         .gte("executed_at", startOfTodayIso()),
     ]);
 
+  // Fail-closed: sem a entidade sincronizada localmente não dá pra confirmar
+  // que ela existe de fato nesta conta, nem validar guardrails com segurança
+  // — melhor recusar do que confiar cegamente num entity_ref.id vindo do
+  // Reasoner/chat e chamar a Meta direto com ele.
+  if (!entity) {
+    const message = "Entidade não encontrada na sincronização local — execução recusada por segurança";
+    await markFailed(actionId, message);
+    await writeAudit(typedAction.ad_account_id, null, "action_blocked_entity_not_found", { action_id: actionId });
+    return { status: "blocked", violations: [message] };
+  }
+
   const guardrailsConfig = guardrailsRow ? toGuardrailsConfig(guardrailsRow as GuardrailsRow) : DEFAULT_GUARDRAILS;
-  const currentBudget = entity?.daily_budget != null ? Number(entity.daily_budget) : null;
+  const currentBudget = entity.daily_budget != null ? Number(entity.daily_budget) : null;
   const newBudget = computeNewBudget(typedAction.type, typedAction.params, currentBudget);
+
+  // Sem currentBudget não dá pra validar o guardrail de variação percentual
+  // — checkBudgetChangePct simplesmente não é chamado quando currentBudget é
+  // null, o que deixaria uma mudança de budget passar sem limite nenhum.
+  if ((typedAction.type === "ADJUST_BUDGET" || typedAction.type === "REALLOCATE_BUDGET") && currentBudget == null) {
+    const message = "Budget atual da entidade desconhecido — impossível validar o guardrail de variação percentual";
+    await markFailed(actionId, message);
+    await writeAudit(typedAction.ad_account_id, null, "action_blocked_by_guardrail", {
+      action_id: actionId,
+      violations: ["BUDGET_UNKNOWN"],
+    });
+    return { status: "blocked", violations: [message] };
+  }
+
+  // Teto de spend diário (PROJECT.md 6.5): projeta o spend diário total da
+  // conta no MESMO nível da entidade (soma dos budgets ativos, trocando a
+  // contribuição desta entidade pelo valor pós-ação). Aproximação aceita:
+  // não distingue Campaign Budget Optimization (budget no campaign) de
+  // Ad Set Budget Optimization (budget no adset) — só roda quando o nível é
+  // adset/campaign, que é onde este schema guarda daily_budget.
+  const budgetAffectingTypes = new Set(["ADJUST_BUDGET", "REALLOCATE_BUDGET", "REACTIVATE"]);
+  let projectedDailySpendForAccount: number | null = null;
+  if (budgetAffectingTypes.has(typedAction.type) && (entityLevel === "adset" || entityLevel === "campaign")) {
+    const contribution = typedAction.type === "REACTIVATE" ? currentBudget : newBudget;
+    if (contribution != null) {
+      const { data: activeEntities } = await supabase
+        .from("entities")
+        .select("meta_id, daily_budget")
+        .eq("ad_account_id", typedAction.ad_account_id)
+        .eq("level", entityLevel)
+        .eq("status", "ACTIVE");
+
+      const othersTotal = (activeEntities ?? [])
+        .filter((e) => e.meta_id !== entityMetaId)
+        .reduce((sum, e) => sum + Number(e.daily_budget ?? 0), 0);
+
+      projectedDailySpendForAccount = othersTotal + contribution;
+    }
+  }
 
   const violations = checkAllGuardrails({
     entityMetaId,
     currentBudget,
     newBudget,
+    projectedDailySpendForAccount,
     guardrails: guardrailsConfig,
     now: new Date(),
     lastChangeAtForEntity: lastExecuted?.executed_at ? new Date(lastExecuted.executed_at) : null,
@@ -331,6 +398,16 @@ export async function revertAction(actionId: string): Promise<ExecuteActionResul
 
     if ("status" in previousState) {
       const previousStatus = previousState.status as string | null;
+      if (previousStatus == null) {
+        // A entidade não estava sincronizada localmente no momento da
+        // execução — não dá pra saber se o estado real era ACTIVE ou
+        // PAUSED. Adivinhar (ex: sempre pausar) pode deixar a entidade no
+        // estado ERRADO silenciosamente; melhor recusar e pedir reversão
+        // manual no Ads Manager.
+        throw new Error(
+          "Estado anterior desconhecido (entidade não estava sincronizada na execução) — reversão automática recusada, requer intervenção manual",
+        );
+      }
       metaResponse = (
         previousStatus === "ACTIVE" ? await reactivateEntity(client, entityMetaId) : await pauseEntity(client, entityMetaId)
       ).raw;

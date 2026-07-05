@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { requireOrgMember, UnauthorizedError } from "@/lib/auth/require-org";
+import { requireOrgContributor, UnauthorizedError } from "@/lib/auth/require-org";
 import { CHAT_TOOLS, createChatToolContext, executeChatTool } from "@/lib/engine/chat-tools";
 import { recordLlmUsage } from "@/lib/engine/llm-usage";
 import type { LlmCallUsage } from "@/lib/engine/reasoner";
 
 /**
  * Chat com o Agente (PROJECT.md 6.6): mesmo limite do job diário — o LLM só
- * lê dados já processados via tools e nunca chama a Meta. `propose_action` é
- * a única tool de escrita, e só cria um card pendente no feed (mesmo
- * pipeline de guardrails). Sonnet 5, mesmo modelo do Reasoner diário.
+ * lê dados já processados via tools e nunca chama a Meta diretamente.
+ * `propose_action` é a única tool de escrita: cria uma action pendente pelo
+ * mesmo pipeline de guardrails da análise diária, e pode ser auto-executada
+ * pelo Autopilot se a conta estiver nesse modo — por isso exige
+ * `requireOrgContributor` (viewer não decide nada), o mesmo nível de
+ * approve/reject/revert. Sonnet 5, mesmo modelo do Reasoner diário.
  */
 
 export const maxDuration = 60;
@@ -31,7 +34,7 @@ Regras de decisão (obrigatórias):
 - Você nunca calcula métricas por conta própria e nunca chama a Meta diretamente. Use as tools (get_metrics, get_business_context, get_action_history, run_signal_scan) para ler dados já processados.
 - Toda métrica ou número que você citar DEVE vir literalmente do resultado de uma tool chamada nesta conversa — nunca invente ou estime.
 - Use run_signal_scan primeiro quando precisar descobrir quais entidades existem e seus meta_ids antes de chamar get_metrics ou propose_action.
-- propose_action APENAS cria um card pendente no feed — nunca executa nada na Meta. Deixe sempre claro que a ação ainda precisa de aprovação do gestor.
+- propose_action cria uma action pendente no feed — você nunca chama a Meta diretamente. Se a conta estiver em modo Autopilot, ações de risco baixo podem ser auto-executadas pelo sistema (não por você); deixe sempre claro que qualquer ação de risco médio/alto continua precisando de aprovação humana no feed.
 - Nunca proponha ADJUST_BUDGET/REALLOCATE_BUDGET com params.change_pct acima de 20% ou abaixo de -20% (guardrail padrão).
 - Ancore toda recomendação no Business Context da conta (ticket médio, margem, estratégia, restrições) — consulte get_business_context antes de recomendar.
 - Responda sempre em português, em linguagem de negócio, direto ao ponto.`;
@@ -44,7 +47,7 @@ interface ToolCallLogEntry {
 
 export async function POST(request: Request) {
   try {
-    const { user } = await requireOrgMember();
+    const { user } = await requireOrgContributor();
 
     const parsedBody = bodySchema.safeParse(await request.json());
     if (!parsedBody.success) {
