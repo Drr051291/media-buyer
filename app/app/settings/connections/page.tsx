@@ -19,8 +19,13 @@ export default async function ConnectionsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Conexões</h1>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div className="space-y-1 text-center">
+        <h1 className="font-heading text-4xl font-bold text-primary">Conectar Meta Ads (BYOT)</h1>
+        <p className="mx-auto max-w-2xl text-lg text-on-surface-variant">
+          Integre sua própria tecnologia (Bring Your Own Token) para dar vida à sua estratégia de anúncios.
+        </p>
+      </div>
 
       {tokens && tokens.length > 0 && (
         <div className="flex flex-col gap-3">

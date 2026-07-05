@@ -21,7 +21,8 @@ export default function SignupPage() {
   const [state, formAction, pending] = useActionState(signup, initialState);
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-surface p-6">
+      <h1 className="font-heading text-3xl font-bold text-primary">Traffic Copilot</h1>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Criar conta</CardTitle>

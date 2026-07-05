@@ -12,7 +12,7 @@ export default async function AccountReportPage({ params }: { params: Promise<{ 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Relatório semanal — {account.name}</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Relatório semanal — {account.name}</h1>
         <p className="text-sm text-muted-foreground">
           Resume os últimos 7 diagnósticos diários em linguagem de negócio, pronto para
           copiar e enviar ao cliente final.

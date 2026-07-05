@@ -127,22 +127,22 @@ export default async function AccountDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{account.name}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-heading text-4xl font-bold text-primary">{account.name}</h1>
+          <p className="text-sm text-on-surface-variant">
             Últimos {WINDOW_DAYS} dias vs {WINDOW_DAYS} dias anteriores
           </p>
         </div>
         <div className="flex gap-4">
-          <Link href={`/app/accounts/${id}/insights`} className="text-sm underline underline-offset-4">
+          <Link href={`/app/accounts/${id}/insights`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Insights
           </Link>
-          <Link href={`/app/accounts/${id}/chat`} className="text-sm underline underline-offset-4">
+          <Link href={`/app/accounts/${id}/chat`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Chat
           </Link>
-          <Link href={`/app/accounts/${id}/context`} className="text-sm underline underline-offset-4">
+          <Link href={`/app/accounts/${id}/context`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Contexto de negócio
           </Link>
-          <Link href={`/app/accounts/${id}/settings`} className="text-sm underline underline-offset-4">
+          <Link href={`/app/accounts/${id}/settings`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Configurações
           </Link>
         </div>

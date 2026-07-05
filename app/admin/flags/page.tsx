@@ -19,7 +19,7 @@ export default async function AdminFlagsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Feature flags</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Feature flags</h1>
         <p className="text-sm text-muted-foreground">
           {AUTOPILOT_FLAG}: libera a opção Autopilot no seletor de autonomia de cada conta do tenant.
         </p>

@@ -43,8 +43,8 @@ export default async function AccountSettingsPage({ params }: { params: Promise<
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Configurações — {account.name}</h1>
-        <p className="text-sm text-muted-foreground">Modo de autonomia e guardrails de execução (PROJECT.md 6.5).</p>
+        <h1 className="font-heading text-4xl font-bold text-primary">Configurações — {account.name}</h1>
+        <p className="text-sm text-on-surface-variant">Modo de autonomia e guardrails de execução (PROJECT.md 6.5).</p>
       </div>
 
       <AutonomyForm

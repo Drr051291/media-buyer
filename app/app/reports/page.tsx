@@ -9,7 +9,7 @@ export default async function ReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Relatórios</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Relatórios</h1>
         <p className="text-muted-foreground">
           Relatório semanal gerado pela IA em linguagem de negócio, pronto para enviar ao
           cliente final.

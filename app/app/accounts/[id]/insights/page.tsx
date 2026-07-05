@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AlertTriangle, AlertCircle, Info, Lightbulb } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,16 @@ const SEVERITY_VARIANT: Record<string, "destructive" | "secondary" | "default"> 
   critical: "destructive",
   warning: "secondary",
   info: "default",
+};
+const SEVERITY_ICON: Record<string, typeof AlertTriangle> = {
+  critical: AlertTriangle,
+  warning: AlertCircle,
+  info: Info,
+};
+const SEVERITY_ICON_BG: Record<string, string> = {
+  critical: "bg-error-container text-on-error-container",
+  warning: "bg-tertiary-container/40 text-tertiary",
+  info: "bg-secondary-container text-on-secondary-container",
 };
 
 interface EntityRef {
@@ -115,8 +126,8 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
   if (!snapshot) {
     return (
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Insights — {account.name}</h1>
-        <p className="text-muted-foreground">
+        <h1 className="font-heading text-3xl font-bold text-primary">Insights — {account.name}</h1>
+        <p className="text-on-surface-variant">
           Ainda não há análise para esta conta. A primeira roda assim que o job diário
           processar os dados sincronizados.
         </p>
@@ -125,85 +136,98 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Insights — {account.name}</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-8">
+      <div className="space-y-1">
+        <h1 className="font-heading text-5xl leading-tight font-bold text-on-surface">Feed de Insights &amp; Ações</h1>
+        <p className="max-w-2xl text-lg text-on-surface-variant">
           Análise de {new Date(snapshot.date).toLocaleDateString("pt-BR")} · gerado por {snapshot.llm_model}
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Diagnóstico
-            <Badge variant={snapshot.health_score >= 70 ? "default" : snapshot.health_score >= 40 ? "secondary" : "destructive"}>
-              Health score: {snapshot.health_score}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm">{snapshot.diagnosis}</p>
-        </CardContent>
-      </Card>
+      <section className="relative overflow-hidden rounded-2xl bg-primary-container p-6 text-on-primary-container md:p-8">
+        <div className="relative z-10 flex items-start gap-3">
+          <Lightbulb className="mt-1 size-7 shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-heading text-xl">Diagnóstico do Copiloto</h2>
+              <Badge
+                variant={snapshot.health_score >= 70 ? "default" : snapshot.health_score >= 40 ? "secondary" : "destructive"}
+                className="bg-surface text-primary"
+              >
+                Health score: {snapshot.health_score}
+              </Badge>
+            </div>
+            <p className="max-w-3xl leading-relaxed text-on-primary-container/90">{snapshot.diagnosis}</p>
+          </div>
+        </div>
+      </section>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Achados ({insights.length})</h2>
-        {insights.length === 0 && <p className="text-sm text-muted-foreground">Nenhum achado relevante hoje.</p>}
-        {insights.map((insight, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-sm font-medium">
-                {(insight.entity_ref as EntityRef)?.name ?? "Conta"}
-                <Badge variant={SEVERITY_VARIANT[insight.severity] ?? "default"}>{insight.severity}</Badge>
-              </CardTitle>
-              <CardDescription>{insight.finding}</CardDescription>
-            </CardHeader>
-            {Array.isArray(insight.evidence) && insight.evidence.length > 0 && (
-              <CardContent>
-                <ul className="list-inside list-disc text-xs text-muted-foreground">
-                  {(insight.evidence as string[]).map((e, j) => (
-                    <li key={j}>{e}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            )}
-          </Card>
-        ))}
-      </div>
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-xl text-on-surface">Achados ({insights.length})</h2>
+        {insights.length === 0 && <p className="text-sm text-on-surface-variant">Nenhum achado relevante hoje.</p>}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {insights.map((insight, i) => {
+            const Icon = SEVERITY_ICON[insight.severity] ?? Info;
+            return (
+              <Card key={i} className="p-4">
+                <CardHeader className="px-0">
+                  <div className="mb-2 flex items-start justify-between">
+                    <div className={`flex size-10 items-center justify-center rounded-lg ${SEVERITY_ICON_BG[insight.severity] ?? ""}`}>
+                      <Icon className="size-5" />
+                    </div>
+                    <Badge variant={SEVERITY_VARIANT[insight.severity] ?? "default"}>{insight.severity}</Badge>
+                  </div>
+                  <CardTitle className="text-base">{(insight.entity_ref as EntityRef)?.name ?? "Conta"}</CardTitle>
+                  <CardDescription>{insight.finding}</CardDescription>
+                </CardHeader>
+                {Array.isArray(insight.evidence) && insight.evidence.length > 0 && (
+                  <CardContent className="px-0">
+                    <ul className="list-inside list-disc text-xs text-on-surface-variant">
+                      {(insight.evidence as string[]).map((e, j) => (
+                        <li key={j}>{e}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </section>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Ações propostas ({proposedActions.length})</h2>
-        <p className="text-xs text-muted-foreground">
+      <div className="hand-drawn-divider" />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-xl text-on-surface">Ações propostas ({proposedActions.length})</h2>
+        <p className="text-xs text-on-surface-variant">
           Aprovar dispara a execução na Meta (modo Copiloto) respeitando os guardrails da conta.
         </p>
         {proposedActions.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhuma ação proposta hoje.</p>
+          <p className="text-sm text-on-surface-variant">Nenhuma ação proposta hoje.</p>
         )}
-        {proposedActions.map((action) => (
-          <Card key={action.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-sm font-medium">
-                <span>
-                  {action.type} — {action.entity_ref?.name ?? "Conta"}
-                </span>
-                <Badge variant={RISK_VARIANT[action.risk ?? "low"] ?? "default"}>risco {action.risk}</Badge>
-              </CardTitle>
-              <CardDescription>{action.reasoning}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <p className="text-xs text-muted-foreground">Impacto esperado: {action.expected_impact}</p>
-              <ProposedActionButtons actionId={action.id} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {proposedActions.map((action) => (
+            <Card key={action.id} className="flex flex-col justify-between p-4">
+              <CardHeader className="px-0">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">{action.type}</CardTitle>
+                  <Badge variant={RISK_VARIANT[action.risk ?? "low"] ?? "default"}>risco {action.risk}</Badge>
+                </div>
+                <p className="text-xs text-on-surface-variant">{action.entity_ref?.name ?? "Conta"}</p>
+                <CardDescription>{action.reasoning}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 border-t border-outline-variant/30 px-0 pt-3">
+                <p className="text-xs text-on-surface-variant">Impacto esperado: {action.expected_impact}</p>
+                <ProposedActionButtons actionId={action.id} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Histórico de ações</h2>
-        {history.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhuma ação decidida ainda.</p>
-        )}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-xl text-on-surface">Histórico de ações</h2>
+        {history.length === 0 && <p className="text-sm text-on-surface-variant">Nenhuma ação decidida ainda.</p>}
         {history.map((action) => (
           <Card key={action.id}>
             <CardHeader>
@@ -220,13 +244,13 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
             <CardContent className="flex flex-col gap-3">
               {action.error && <p className="text-xs text-destructive">Erro: {action.error}</p>}
               {action.status === "rejected" && action.decision_note && (
-                <p className="text-xs text-muted-foreground">Motivo: {action.decision_note}</p>
+                <p className="text-xs text-on-surface-variant">Motivo: {action.decision_note}</p>
               )}
               {(() => {
                 const result = Array.isArray(action.action_results) ? action.action_results[0] : action.action_results;
                 if (!result || result.verdict == null) return null;
                 return (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-on-surface-variant">
                     Resultado ({result.metric}): baseline {result.baseline_value ?? "?"} → atual{" "}
                     {result.d7_value ?? result.d4_value ?? "?"} ({result.verdict}
                     {result.delta_pct != null ? `, ${result.delta_pct.toFixed(1)}%` : ""})
@@ -237,7 +261,7 @@ export default async function InsightsFeedPage({ params }: { params: Promise<{ i
             </CardContent>
           </Card>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

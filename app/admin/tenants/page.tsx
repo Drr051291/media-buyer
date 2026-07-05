@@ -31,7 +31,7 @@ export default async function AdminTenantsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Tenants</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Tenants</h1>
         <p className="text-sm text-muted-foreground">
           {rows.length} organização(ões). Suspender bloqueia toda sincronização e execução de ações da conta (kill
           switch).

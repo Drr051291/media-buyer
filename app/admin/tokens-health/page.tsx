@@ -25,7 +25,7 @@ export default async function AdminTokensHealthPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Saúde de tokens</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Saúde de tokens</h1>
         <p className="text-sm text-muted-foreground">{rows.length} token(s) Meta, de todos os tenants.</p>
       </div>
 

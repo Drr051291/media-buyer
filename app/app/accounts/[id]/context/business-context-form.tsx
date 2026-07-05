@@ -17,7 +17,9 @@ import { saveBusinessContext, type SaveContextState } from "./actions";
 const initialState: SaveContextState = { error: null };
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm";
+  "flex h-9 w-full border-0 border-b border-input bg-transparent px-1 py-1 text-sm focus:border-b-2 focus:border-primary focus:outline-none";
+
+const sectionLabelClass = "mb-4 block font-heading text-xl text-secondary italic";
 
 export function BusinessContextForm({
   adAccountId,
@@ -42,9 +44,9 @@ export function BusinessContextForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
-      <Card>
+      <Card className="p-2">
         <CardContent className="flex flex-col gap-4 pt-6">
-          <h2 className="text-sm font-semibold">Sobre o negócio</h2>
+          <label className={sectionLabelClass}>I. Sobre o negócio</label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="business_model">Modelo de negócio</Label>
@@ -80,9 +82,9 @@ export function BusinessContextForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
-          <h2 className="text-sm font-semibold">Conversão e economia</h2>
+      <Card className="p-2">
+        <CardContent className="flex flex-col gap-4 border-t border-outline-variant/30 pt-6">
+          <label className={sectionLabelClass}>II. Metas &amp; Eficiência</label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="objetivo_principal">Evento de conversão principal</Label>
@@ -190,9 +192,9 @@ export function BusinessContextForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-6">
-          <h2 className="text-sm font-semibold">Estratégia e restrições</h2>
+      <Card className="p-2">
+        <CardContent className="flex flex-col gap-4 border-t border-outline-variant/30 pt-6">
+          <label className={sectionLabelClass}>III. Estratégia &amp; Restrições</label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="estrategia">Estratégia atual</Label>

@@ -11,7 +11,7 @@ import { updateAutonomyMode, updateGuardrails, type SettingsActionState } from "
 const initialState: SettingsActionState = { error: null };
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm";
+  "flex h-9 w-full border-0 border-b border-input bg-transparent px-1 py-1 text-sm focus:border-b-2 focus:border-primary focus:outline-none";
 
 const AUTONOMY_LABELS: Record<string, string> = {
   observador: "Observador — só análise e alertas, nenhuma escrita",
@@ -45,7 +45,7 @@ export function AutonomyForm({
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 pt-6">
-        <h2 className="text-sm font-semibold">Modo de autonomia</h2>
+        <h2 className="font-heading text-lg text-primary">Modo de autonomia</h2>
         <p className="text-xs text-muted-foreground">
           Só owner/admin da organização pode alterar. Autopilot precisa ser liberado pelo admin da plataforma
           (feature flag por tenant).
@@ -90,7 +90,7 @@ export function GuardrailsForm({
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 pt-6">
-        <h2 className="text-sm font-semibold">Guardrails</h2>
+        <h2 className="font-heading text-lg text-primary">Guardrails</h2>
         <form action={formAction} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">

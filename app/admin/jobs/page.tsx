@@ -24,7 +24,7 @@ export default async function AdminJobsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Jobs</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Jobs</h1>
         <p className="text-sm text-muted-foreground">Fila de sync_jobs (todos os tenants).</p>
       </div>
 
@@ -33,7 +33,7 @@ export default async function AdminJobsPage() {
           <Card key={status}>
             <CardContent className="flex flex-col gap-1 pt-6">
               <span className="text-xs text-muted-foreground">{status}</span>
-              <span className="text-2xl font-semibold">{countsByStatus[status]}</span>
+              <span className="font-heading text-2xl font-semibold text-on-surface">{countsByStatus[status]}</span>
             </CardContent>
           </Card>
         ))}

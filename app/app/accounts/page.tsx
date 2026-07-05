@@ -12,7 +12,7 @@ export default async function AccountsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Contas</h1>
+      <h1 className="font-heading text-4xl font-bold text-primary">Contas</h1>
 
       {(!adAccounts || adAccounts.length === 0) && (
         <p className="text-muted-foreground">

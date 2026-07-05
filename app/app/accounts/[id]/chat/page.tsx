@@ -22,8 +22,8 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Chat — {account.name}</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-heading text-4xl font-bold text-primary">Chat — {account.name}</h1>
+        <p className="text-sm text-on-surface-variant">
           Converse sobre a conta em linguagem natural. O agente só lê dados já processados e pode propor ações — nunca
           executa nada sem aprovação no feed.
         </p>

@@ -45,14 +45,14 @@ export default async function AdminLlmUsagePage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Custo de LLM</h1>
+        <h1 className="font-heading text-4xl font-bold text-primary">Custo de LLM</h1>
         <p className="text-sm text-muted-foreground">Últimos {LOOKBACK_DAYS} dias, todos os tenants.</p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
           <p className="text-xs text-muted-foreground">Custo total estimado</p>
-          <p className="text-2xl font-semibold">{formatUsd(totalCost)}</p>
+          <p className="font-heading text-2xl font-semibold text-on-surface">{formatUsd(totalCost)}</p>
         </CardContent>
       </Card>
 
