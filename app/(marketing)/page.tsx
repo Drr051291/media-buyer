@@ -1,21 +1,59 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
+import { Hero } from "@/components/marketing/hero";
+import { PainBar } from "@/components/marketing/pain-bar";
+import { HowItWorks } from "@/components/marketing/how-it-works";
+import { TransparencySection } from "@/components/marketing/transparency-section";
+import { BusinessResultSection } from "@/components/marketing/business-result-section";
+import { MultichannelSection } from "@/components/marketing/multichannel-section";
+import { PersonasSection } from "@/components/marketing/personas-section";
+import { SecuritySection } from "@/components/marketing/security-section";
+import { SocialProofSection } from "@/components/marketing/social-proof-section";
+import { PricingSummary } from "@/components/marketing/pricing-summary";
+import { FaqSection } from "@/components/marketing/faq-section";
+import { FinalCta } from "@/components/marketing/final-cta";
+
+export const metadata: Metadata = {
+  title: "Traffic Copilot — Gestão de Mídia com IA orientada a resultado",
+  description:
+    "A IA que gerencia suas mídias olhando o que virou venda, não só o que a plataforma reporta. Meta Ads disponível agora; Google Ads e TikTok em breve.",
+  openGraph: {
+    title: "Traffic Copilot — Gestão de Mídia com IA orientada a resultado",
+    description:
+      "A IA que gerencia suas mídias olhando o que virou venda, não só o que a plataforma reporta.",
+    locale: "pt_BR",
+    type: "website",
+  },
+};
+
+const softwareApplicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Traffic Copilot",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Gestão de mídia paga com IA orientada a resultado de negócio: análise diária de campanhas, contexto de negócio por conta e ações com diagnóstico e aprovação humana.",
+};
 
 export default function MarketingHome() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-surface p-16 text-center">
-      <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">Traffic Copilot</p>
-      <h1 className="max-w-2xl font-heading text-5xl font-bold tracking-tight text-primary">
-        Seu copiloto de tráfego com IA para Meta Ads
-      </h1>
-      <p className="max-w-xl text-lg text-on-surface-variant">
-        Analise métricas com o contexto de negócio de cada conta e escale de 15 para
-        50 contas sem contratar.
-      </p>
-      <div className="flex gap-3">
-        <Button render={<Link href="/signup">Começar agora</Link>} />
-        <Button variant="outline" render={<Link href="/login">Entrar</Link>} />
-      </div>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
+      <Hero />
+      <PainBar />
+      <HowItWorks />
+      <TransparencySection />
+      <BusinessResultSection />
+      <MultichannelSection />
+      <PersonasSection />
+      <SecuritySection />
+      <SocialProofSection />
+      <PricingSummary />
+      <FaqSection />
+      <FinalCta />
+    </>
   );
 }
