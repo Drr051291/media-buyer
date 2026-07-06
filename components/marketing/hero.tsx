@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ActionFeedDemo } from "@/components/marketing/action-feed-demo";
+import { EcosystemAnimation } from "@/components/marketing/ecosystem/ecosystem-animation";
 
 const CHANNELS = [
   { name: "Meta Ads", live: true },
@@ -94,7 +94,7 @@ export function Hero() {
         </div>
 
         <div className="lp-rise justify-self-center lg:justify-self-end" style={riseDelay(200)}>
-          <ActionFeedDemo />
+          <EcosystemAnimation />
         </div>
       </div>
     </section>
