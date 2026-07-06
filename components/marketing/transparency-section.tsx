@@ -1,92 +1,128 @@
-import { FileSearch, History, RotateCcw } from "lucide-react";
+import { CheckCircle2, TrendingDown, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/marketing/reveal";
 
-const POINTS = [
+const LEFT = [
   {
-    icon: FileSearch,
-    title: "Diagnóstico completo",
-    description: "Quais métricas mudaram, desde quando, e com que significância.",
+    tag: "diagnóstico",
+    text: "O que mudou, desde quando e por quê — em linguagem de negócio.",
   },
   {
-    icon: History,
-    title: "O agente aprende com você",
-    description: "Se você rejeitar uma ação, o motivo vira preferência para as próximas análises.",
+    tag: "evidência com números",
+    text: "Cada afirmação ancorada em métrica real do período, com significância.",
   },
-  {
-    icon: RotateCcw,
-    title: "Auditoria e reversão",
-    description: "Toda ação executada fica registrada, com reversão em um clique.",
-  },
+];
+const RIGHT = [
+  { tag: "impacto esperado", text: "O que a ação deve mudar, em faixa, antes de você aprovar." },
+  { tag: "risco", text: "Classificado — só risco baixo é elegível a autopilot." },
+  { tag: "reverter em 1 clique", text: "Todo estado anterior é guardado. Auditoria completa." },
 ];
 
-const EVIDENCE = [
-  { label: "CPA (3d)", value: "R$ 68,40", note: "vs. R$ 51,80 na média 14d", alert: true },
-  { label: "CTR (7d)", value: "1,12%", note: "-27% vs. 14d anteriores", alert: false },
-  { label: "Frequência", value: "4.8", note: "acima do limiar do modelo", alert: false },
-  { label: "Conversões (14d)", value: "86", note: "volume com significância", alert: false },
-];
+function Annotation({
+  tag,
+  text,
+  side,
+  delay,
+}: {
+  tag: string;
+  text: string;
+  side: "left" | "right";
+  delay: number;
+}) {
+  return (
+    <Reveal delay={delay}>
+      <div className={"flex items-start gap-3 " + (side === "right" ? "lg:flex-row-reverse lg:text-right" : "")}>
+        <span aria-hidden className="mt-2 hidden h-px w-8 shrink-0 bg-gradient-to-r from-primary/60 to-transparent lg:block" />
+        <div>
+          <p className="font-heading text-sm font-semibold text-primary">{tag}</p>
+          <p className="mt-0.5 text-sm text-on-surface-variant">{text}</p>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
 
 export function TransparencySection() {
   return (
-    <section className="border-t border-outline-variant/60 bg-surface-container-low px-margin-mobile py-24 md:px-margin-desktop">
-      <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2">
-        <Reveal>
+    <section className="px-margin-mobile py-24 md:px-margin-desktop">
+      <div className="mx-auto max-w-7xl">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="font-heading text-sm font-semibold tracking-wider text-secondary uppercase">
             Sem caixa-preta
           </p>
           <h2 className="mt-2 font-heading text-3xl font-bold text-primary md:text-4xl">
-            IA que mostra o trabalho, não uma caixa-preta
+            Cada recomendação, anatomizada
           </h2>
           <p className="mt-4 text-lg text-on-surface-variant">
-            Cada recomendação vem com o diagnóstico completo: quais métricas mudaram,
-            desde quando, com que significância — e o que esperar da ação. Se você
-            rejeitar, o agente aprende sua preferência. Auditoria completa de tudo que
-            foi executado, com reversão em um clique.
+            Nada de &ldquo;a IA decidiu&rdquo;. Toda ação vem desmontada em partes que você
+            pode auditar — e reverter.
           </p>
-          <ul className="mt-8 grid gap-5">
-            {POINTS.map((point) => (
-              <li key={point.title} className="flex items-start gap-3">
-                <point.icon className="mt-0.5 size-5 shrink-0 text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{point.title}</p>
-                  <p className="text-sm text-on-surface-variant">{point.description}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
         </Reveal>
 
-        <Reveal delay={120}>
-          <div className="rounded-2xl border border-outline-variant/60 bg-surface-container-lowest p-6">
-            <p className="font-heading text-sm font-semibold text-foreground">
-              Diagnóstico expandido — Campanha &ldquo;Remarketing 30d&rdquo;
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-outline-variant/50 bg-outline-variant/50">
-              {EVIDENCE.map((item) => (
-                <div key={item.label} className="bg-muted/70 p-4">
-                  <p className="text-[11px] tracking-wide text-on-surface-variant uppercase">
-                    {item.label}
-                  </p>
-                  <p
-                    className={
-                      "ledger-figure mt-1 text-xl font-medium " +
-                      (item.alert ? "text-destructive" : "text-foreground")
-                    }
-                  >
-                    {item.value}
-                  </p>
-                  <p className="mt-0.5 text-xs text-on-surface-variant">{item.note}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-sm leading-relaxed text-on-surface-variant">
-              Diagnóstico: queda de CTR com CPM estável indica fadiga de criativo, não
-              pressão de leilão. Impacto esperado da ação: redução estimada de 10-15%
-              no CPA da campanha.
-            </p>
+        <div className="mt-14 grid items-center gap-8 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="flex flex-col gap-8">
+            {LEFT.map((item, i) => (
+              <Annotation key={item.tag} {...item} side="left" delay={i * 120} />
+            ))}
           </div>
-        </Reveal>
+
+          <Reveal delay={100}>
+            <div className="mx-auto w-full max-w-sm rounded-2xl border border-primary/30 bg-surface-container-lowest p-5 shadow-[0_24px_60px_-30px_color-mix(in_oklch,var(--md3-primary)_45%,transparent)]">
+              <div className="flex items-center justify-between gap-3">
+                <Badge variant="outline" className="gap-1">
+                  <TrendingDown className="size-3" />
+                  Fadiga de criativo
+                </Badge>
+                <span className="text-xs text-on-surface-variant">Adset · Remarketing 7d</span>
+              </div>
+              <p className="mt-3 text-sm text-foreground">
+                CPA subiu 32% em 3 dias com CTR caindo e frequência acima do limiar do modelo.
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-outline-variant/50 bg-outline-variant/50">
+                {[
+                  { l: "CPA 3d", v: "R$ 68", n: "+32%" },
+                  { l: "CTR 7d", v: "1,12%", n: "-27%" },
+                  { l: "Freq.", v: "4.8", n: "alta" },
+                ].map((m) => (
+                  <div key={m.l} className="bg-muted/80 px-2.5 py-2">
+                    <p className="text-[10px] tracking-wide text-on-surface-variant uppercase">{m.l}</p>
+                    <p className="ledger-figure mt-0.5 text-sm font-medium text-foreground">{m.v}</p>
+                    <p className="text-[10px] text-on-surface-variant">{m.n}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                <p className="text-sm text-foreground">
+                  Pausar 2 anúncios e realocar 18% do budget.{" "}
+                  <span className="text-on-surface-variant">Impacto: -10 a -15% no CPA · risco baixo.</span>
+                </p>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <ButtonLike>Aprovar</ButtonLike>
+                <span className="flex flex-1 items-center justify-center gap-1 rounded-full border border-outline-variant/60 py-1.5 text-xs text-on-surface-variant">
+                  <RotateCcw className="size-3" />
+                  Reverter
+                </span>
+              </div>
+            </div>
+          </Reveal>
+
+          <div className="flex flex-col gap-8">
+            {RIGHT.map((item, i) => (
+              <Annotation key={item.tag} {...item} side="right" delay={i * 120} />
+            ))}
+          </div>
+        </div>
       </div>
     </section>
+  );
+}
+
+function ButtonLike({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex flex-1 items-center justify-center rounded-full bg-primary py-1.5 text-xs font-medium text-primary-foreground">
+      {children}
+    </span>
   );
 }

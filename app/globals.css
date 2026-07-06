@@ -313,3 +313,113 @@
     transform: none;
   }
 }
+
+/* Divisor-assinatura: os traços se desenham quando entram em vista.
+   Cada <path> tem pathLength="1", então dasharray/offset trabalham em fração. */
+.lp-divider path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-divider path {
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lp-divider__ghost,
+  .lp-divider__real {
+    transition-delay: 0.5s;
+  }
+  .lp-divider[data-on="true"] path {
+    stroke-dashoffset: 0;
+  }
+  .lp-divider[data-on="true"] .lp-divider__ghost {
+    animation: lp-ghost-fade 0.8s ease 1.3s forwards;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-divider path {
+    stroke-dashoffset: 0;
+  }
+  .lp-divider__ghost {
+    opacity: 0.15;
+  }
+}
+@keyframes lp-ghost-fade {
+  to {
+    opacity: 0.15;
+  }
+}
+
+/* Marquee lento e contínuo (logos de integração); pausa no hover */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-marquee {
+    animation: lp-marquee 34s linear infinite;
+  }
+  .lp-marquee-group:hover .lp-marquee {
+    animation-play-state: paused;
+  }
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fluxo de dados nas linhas do diagrama radial (canal → centro) */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-flow {
+    animation: lp-flow 1.1s linear infinite;
+  }
+  .lp-flow--muted {
+    animation-duration: 1.8s;
+  }
+}
+@keyframes lp-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Cursor-fantasma da demo do hero */
+@keyframes lp-ghost-click {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  55% {
+    transform: scale(0.82);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@layer utilities {
+  .below-fold {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
+  }
+}
+
+/* Slider da "sala de controles" */
+.lp-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: var(--md3-primary);
+  border: 2px solid var(--md3-surface-container-lowest);
+  cursor: pointer;
+}
+.lp-range::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border: 2px solid var(--md3-surface-container-lowest);
+  border-radius: 9999px;
+  background: var(--md3-primary);
+  cursor: pointer;
+}

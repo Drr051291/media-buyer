@@ -3,9 +3,10 @@ import { Hero } from "@/components/marketing/hero";
 import { PainBar } from "@/components/marketing/pain-bar";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { TransparencySection } from "@/components/marketing/transparency-section";
+import { SignatureDivider } from "@/components/marketing/signature-divider";
 import { BusinessResultSection } from "@/components/marketing/business-result-section";
-import { PlatformBento } from "@/components/marketing/platform-bento";
-import { PersonasSection } from "@/components/marketing/personas-section";
+import { MultichannelSection } from "@/components/marketing/multichannel-section";
+import { SecuritySection } from "@/components/marketing/security-section";
 import { SocialProofSection } from "@/components/marketing/social-proof-section";
 import { PricingSummary } from "@/components/marketing/pricing-summary";
 import { FaqSection } from "@/components/marketing/faq-section";
@@ -45,9 +46,10 @@ export default function MarketingHome() {
       <PainBar />
       <HowItWorks />
       <TransparencySection />
+      <SignatureDivider />
       <BusinessResultSection />
-      <PlatformBento />
-      <PersonasSection />
+      <MultichannelSection />
+      <SecuritySection />
       <SocialProofSection />
       <PricingSummary />
       <FaqSection />
