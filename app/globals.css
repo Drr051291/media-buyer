@@ -132,7 +132,16 @@
   --md3-background: #fdf8f6;
   --md3-on-background: #1c1b1a;
 
-  /* Pares semânticos do shadcn mapeados para o MD3 acima */
+}
+
+/*
+ * Pares semânticos do shadcn mapeados para o MD3 acima. Declarados também em
+ * `.dark` (não só em :root) para que seções escuras aninhadas re-resolvam os
+ * var(--md3-*) contra os tokens escuros — custom properties são substituídas
+ * no elemento em que são declaradas, não no de uso.
+ */
+:root,
+.dark {
   --background: var(--md3-background);
   --foreground: var(--md3-on-background);
   --card: var(--md3-surface-container-low);
@@ -264,4 +273,226 @@
   .artisanal-card:hover {
     transform: translateY(-2px);
   }
+
+  /* Números de evidência — sempre em mono tabular, como um livro-razão */
+  .ledger-figure {
+    font-family: var(--font-geist-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Motion da LP — entrada do hero e reveal on scroll (progressive enhancement) */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-rise {
+    animation: lp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0s);
+  }
+
+  .lp-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+  .lp-reveal[data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Divisor-assinatura: os traços se desenham quando entram em vista.
+   Cada <path> tem pathLength="1", então dasharray/offset trabalham em fração. */
+.lp-divider path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-divider path {
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lp-divider__ghost,
+  .lp-divider__real {
+    transition-delay: 0.5s;
+  }
+  .lp-divider[data-on="true"] path {
+    stroke-dashoffset: 0;
+  }
+  .lp-divider[data-on="true"] .lp-divider__ghost {
+    animation: lp-ghost-fade 0.8s ease 1.3s forwards;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-divider path {
+    stroke-dashoffset: 0;
+  }
+  .lp-divider__ghost {
+    opacity: 0.15;
+  }
+}
+@keyframes lp-ghost-fade {
+  to {
+    opacity: 0.15;
+  }
+}
+
+/* Marquee lento e contínuo (logos de integração); pausa no hover */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-marquee {
+    animation: lp-marquee 34s linear infinite;
+  }
+  .lp-marquee-group:hover .lp-marquee {
+    animation-play-state: paused;
+  }
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fluxo de dados nas linhas do diagrama radial (canal → centro) */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-flow {
+    animation: lp-flow 1.1s linear infinite;
+  }
+  .lp-flow--muted {
+    animation-duration: 1.8s;
+  }
+}
+@keyframes lp-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Ecossistema do hero — o agente varrendo o negócio (SVG + CSS, zero JS).
+   Todo movimento é opcional sob prefers-reduced-motion. */
+.lp-eco__sweep {
+  transform-box: view-box;
+  transform-origin: 300px 280px;
+}
+.lp-eco__halo {
+  transform-box: view-box;
+  transform-origin: 300px 280px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-eco__sweep {
+    animation: lp-eco-sweep 7s linear infinite;
+  }
+  .lp-eco__halo {
+    animation: lp-eco-breathe 4s ease-in-out infinite;
+  }
+  .lp-eco__pulse {
+    animation: lp-eco-pulse 3.4s linear infinite;
+  }
+  .lp-eco__chip {
+    animation: lp-eco-bob 4s ease-in-out infinite;
+  }
+}
+/* Sob reduced-motion os pulsos ficam parados no meio do trajeto */
+@media (prefers-reduced-motion: reduce) {
+  .lp-eco__pulse {
+    transform: translate(calc(var(--dx) / 2), calc(var(--dy) / 2));
+    opacity: 0.85;
+  }
+}
+@keyframes lp-eco-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lp-eco-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 0.17;
+  }
+}
+@keyframes lp-eco-pulse {
+  0% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  88% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+@keyframes lp-eco-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* Cursor-fantasma da demo do hero */
+@keyframes lp-ghost-click {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  55% {
+    transform: scale(0.82);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@layer utilities {
+  .below-fold {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
+  }
+}
+
+/* Slider da "sala de controles" */
+.lp-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: var(--md3-primary);
+  border: 2px solid var(--md3-surface-container-lowest);
+  cursor: pointer;
+}
+.lp-range::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border: 2px solid var(--md3-surface-container-lowest);
+  border-radius: 9999px;
+  background: var(--md3-primary);
+  cursor: pointer;
 }
