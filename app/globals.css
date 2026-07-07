@@ -379,6 +379,79 @@
   }
 }
 
+/* Ecossistema do hero — o agente varrendo o negócio (SVG + CSS, zero JS).
+   Todo movimento é opcional sob prefers-reduced-motion. */
+.lp-eco__sweep {
+  transform-box: view-box;
+  transform-origin: 300px 280px;
+}
+.lp-eco__halo {
+  transform-box: view-box;
+  transform-origin: 300px 280px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-eco__sweep {
+    animation: lp-eco-sweep 7s linear infinite;
+  }
+  .lp-eco__halo {
+    animation: lp-eco-breathe 4s ease-in-out infinite;
+  }
+  .lp-eco__pulse {
+    animation: lp-eco-pulse 3.4s linear infinite;
+  }
+  .lp-eco__chip {
+    animation: lp-eco-bob 4s ease-in-out infinite;
+  }
+}
+/* Sob reduced-motion os pulsos ficam parados no meio do trajeto */
+@media (prefers-reduced-motion: reduce) {
+  .lp-eco__pulse {
+    transform: translate(calc(var(--dx) / 2), calc(var(--dy) / 2));
+    opacity: 0.85;
+  }
+}
+@keyframes lp-eco-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lp-eco-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 0.17;
+  }
+}
+@keyframes lp-eco-pulse {
+  0% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  88% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+@keyframes lp-eco-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
 /* Cursor-fantasma da demo do hero */
 @keyframes lp-ghost-click {
   0%,
