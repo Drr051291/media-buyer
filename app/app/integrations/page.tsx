@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Webhook, ArrowRight } from "lucide-react";
+import { BarChart3, Megaphone, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ export default async function IntegrationsPage() {
     .maybeSingle();
 
   const ga4Connected = Boolean(ga4 && ga4.status === "active" && ga4.ga4_property_id);
+
+  const { count: googleCount } = await supabase
+    .from("ad_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("provider", "google")
+    .eq("status", "active");
+  const googleConnected = (googleCount ?? 0) > 0;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -55,23 +62,26 @@ export default async function IntegrationsPage() {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col opacity-80">
+        <Card className="flex flex-col">
           <CardHeader>
             <div className="mb-2 flex items-start justify-between">
-              <div className="flex size-11 items-center justify-center rounded-lg bg-surface-variant text-on-surface-variant">
-                <Webhook className="size-5" />
+              <div className="flex size-11 items-center justify-center rounded-lg bg-primary-container text-on-primary-container">
+                <Megaphone className="size-5" />
               </div>
-              <Badge variant="secondary">Webhook</Badge>
+              <Badge variant={googleConnected ? "default" : "secondary"}>
+                {googleConnected ? "Conectado" : "Disponível"}
+              </Badge>
             </div>
-            <CardTitle className="text-lg">Webhook genérico</CardTitle>
+            <CardTitle className="text-lg">Google Ads</CardTitle>
             <CardDescription>
-              Qualquer sistema (CRM, e-commerce, ERP) que fale o formato canônico pode postar
-              eventos — tipicamente via um blueprint no Make/n8n.
+              Segundo canal de mídia. Campanhas, grupos de anúncios e anúncios no mesmo painel do
+              Meta — comparáveis pelo resultado real. OAuth por conta, sem colar tokens.
             </CardDescription>
           </CardHeader>
           <CardContent className="mt-auto">
-            <Button variant="outline" className="w-full" disabled>
-              Configurado por conexão
+            <Button render={<Link href="/app/integrations/google-ads" />} className="w-full gap-2">
+              {googleConnected ? "Gerenciar conexão" : "Conectar Google Ads"}
+              <ArrowRight className="size-4" />
             </Button>
           </CardContent>
         </Card>
