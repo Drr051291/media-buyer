@@ -510,10 +510,11 @@ export async function processOneMeasureActionResultsChunk(): Promise<WorkerResul
   }
 }
 
-const CHUNK_PROCESSORS: Record<
-  Exclude<SyncJobKind, "token_health">,
-  () => Promise<WorkerResult>
-> = {
+// Kinds processados por ESTE módulo (Meta + jobs provider-agnósticos). Os kinds
+// do Google (google_*) têm workers próprios em lib/providers/google-ads/sync.ts.
+type MetaJobKind = Exclude<SyncJobKind, "token_health" | `google_${string}`>;
+
+const CHUNK_PROCESSORS: Record<MetaJobKind, () => Promise<WorkerResult>> = {
   sync_entities: processOneEntitiesChunk,
   sync_insights_daily: processOneInsightsDailyChunk,
   sync_insights_backfill: processOneBackfillChunk,
@@ -522,8 +523,8 @@ const CHUNK_PROCESSORS: Record<
   measure_action_results: processOneMeasureActionResultsChunk,
 };
 
-export const CHUNKED_JOB_KINDS = Object.keys(CHUNK_PROCESSORS) as Exclude<SyncJobKind, "token_health">[];
+export const CHUNKED_JOB_KINDS = Object.keys(CHUNK_PROCESSORS) as MetaJobKind[];
 
-export async function processOneChunkOfKind(kind: Exclude<SyncJobKind, "token_health">): Promise<WorkerResult> {
+export async function processOneChunkOfKind(kind: MetaJobKind): Promise<WorkerResult> {
   return CHUNK_PROCESSORS[kind]();
 }

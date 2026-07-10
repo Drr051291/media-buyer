@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { enqueueMissingJobs, requireCronSecret } from "@/lib/engine/sync-orchestrator";
 import { CHUNKED_JOB_KINDS, processOneChunkOfKind, runTokenHealthCheck } from "@/lib/engine/sync-workers";
 import { processNextGa4Incremental, processNextGa4BackfillChunk } from "@/lib/connectors/ga4/sync";
+import {
+  GOOGLE_CHUNKED_JOB_KINDS,
+  GOOGLE_CHUNK_PROCESSORS,
+  processOneGoogleBackfillChunk,
+} from "@/lib/providers/google-ads/sync";
 
 /**
  * Worker único, agendado 1x/dia (plano Hobby da Vercel só permite cron
@@ -27,9 +32,13 @@ export async function GET(request: Request) {
   const startedAt = Date.now();
 
   await Promise.all([
-    enqueueMissingJobs("sync_entities", ENQUEUE_FREQUENCY_HOURS),
-    enqueueMissingJobs("sync_insights_daily", ENQUEUE_FREQUENCY_HOURS),
-    enqueueMissingJobs("sync_breakdowns", ENQUEUE_FREQUENCY_HOURS),
+    // Jobs Meta: só contas provider='meta' (o worker usa MetaClient).
+    enqueueMissingJobs("sync_entities", ENQUEUE_FREQUENCY_HOURS, "meta"),
+    enqueueMissingJobs("sync_insights_daily", ENQUEUE_FREQUENCY_HOURS, "meta"),
+    enqueueMissingJobs("sync_breakdowns", ENQUEUE_FREQUENCY_HOURS, "meta"),
+    enqueueMissingJobs("google_sync_entities", ENQUEUE_FREQUENCY_HOURS, "google"),
+    enqueueMissingJobs("google_sync_insights_daily", ENQUEUE_FREQUENCY_HOURS, "google"),
+    // Análise/medição são provider-agnósticas (rodam sobre metrics_daily).
     enqueueMissingJobs("daily_analysis", ENQUEUE_FREQUENCY_HOURS),
     enqueueMissingJobs("measure_action_results", ENQUEUE_FREQUENCY_HOURS),
   ]);
@@ -43,6 +52,9 @@ export async function GET(request: Request) {
     CHUNKED_JOB_KINDS.map((kind) => [kind, 0]),
   );
   const ga4Counts = { incremental: 0, backfill: 0 };
+  const googleCounts: Record<string, number> = Object.fromEntries(
+    [...GOOGLE_CHUNKED_JOB_KINDS, "google_sync_backfill"].map((k) => [k, 0]),
+  );
 
   // Round-robin entre os tipos de sync_jobs (Meta) + o conector GA4
   // (connections.sync_cursor) até o orçamento de tempo acabar ou uma volta
@@ -56,6 +68,25 @@ export async function GET(request: Request) {
       const result = await processOneChunkOfKind(kind);
       if (result.processed) {
         processedCounts[kind] += 1;
+        processedAnyThisRound = true;
+      }
+    }
+
+    // Google Ads: entities + insights (kinds próprios, workers próprios).
+    for (const kind of GOOGLE_CHUNKED_JOB_KINDS) {
+      if (kind === "google_sync_backfill") continue; // backfill tem prioridade separada abaixo
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
+
+      const result = await GOOGLE_CHUNK_PROCESSORS[kind]();
+      if (result.processed) {
+        googleCounts[kind] += 1;
+        processedAnyThisRound = true;
+      }
+    }
+    if (Date.now() - startedAt < TIME_BUDGET_MS) {
+      const gBackfill = await processOneGoogleBackfillChunk().catch(() => ({ processed: false }));
+      if (gBackfill.processed) {
+        googleCounts.google_sync_backfill += 1;
         processedAnyThisRound = true;
       }
     }
@@ -85,5 +116,6 @@ export async function GET(request: Request) {
     tokenHealth,
     chunksProcessed: processedCounts,
     ga4: ga4Counts,
+    google: googleCounts,
   });
 }

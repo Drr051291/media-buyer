@@ -9,7 +9,10 @@ export type SyncJobKind =
   | "sync_breakdowns"
   | "token_health"
   | "daily_analysis"
-  | "measure_action_results";
+  | "measure_action_results"
+  | "google_sync_entities"
+  | "google_sync_insights_daily"
+  | "google_sync_backfill";
 
 export interface SyncJobRow {
   id: string;
@@ -29,16 +32,24 @@ export interface SyncJobRow {
  * NÃO usar para sync_insights_backfill — esse é disparado uma vez no
  * onboarding (ver /api/meta/connect), não por frequência.
  */
-export async function enqueueMissingJobs(kind: SyncJobKind, frequencyHours: number): Promise<void> {
+export async function enqueueMissingJobs(
+  kind: SyncJobKind,
+  frequencyHours: number,
+  provider?: "meta" | "google",
+): Promise<void> {
   const supabase = createServiceRoleClient();
 
   // Kill switch: pula contas pausadas (ad_accounts.status) e contas de
   // tenants suspensos pelo admin da plataforma (organizations.status).
-  const { data: accounts } = await supabase
+  // `provider` restringe às contas do canal certo — jobs Meta não podem cair em
+  // contas Google (o worker usaria o token errado) e vice-versa.
+  let query = supabase
     .from("ad_accounts")
     .select("id, organizations!inner(status)")
     .eq("status", "active")
     .eq("organizations.status", "active");
+  if (provider) query = query.eq("provider", provider);
+  const { data: accounts } = await query;
   if (!accounts || accounts.length === 0) return;
 
   const cutoffIso = new Date(Date.now() - frequencyHours * 60 * 60 * 1000).toISOString();
