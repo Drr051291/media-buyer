@@ -3,7 +3,53 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resolveAdAccountForSync } from "./sync-orchestrator";
 import { MetaClient, MetaApiError } from "@/lib/meta/client";
 import { pauseEntity, reactivateEntity, updateDailyBudget, duplicateAdset } from "@/lib/meta/mutations";
+import {
+  googleCustomer,
+  setGoogleEntityStatus,
+  updateGoogleCampaignBudget,
+} from "@/lib/providers/google-ads/mutations";
 import { checkAllGuardrails, type GuardrailsConfig } from "./guardrails";
+
+type CanonicalLevel = "campaign" | "adset" | "ad";
+type ResolvedAccount = { metaAccountId: string; accessToken: string; provider: "meta" | "google" };
+
+/**
+ * Camada de escrita provider-agnóstica (ETAPA3GOOGLEADS BLOCO 6). Os guardrails,
+ * o claim atômico, o kill switch e a captura de previous_state são
+ * compartilhados; só a chamada final à API muda por provider. Google não
+ * suporta DUPLICATE_ADSET na V1.
+ */
+async function applyStatusChange(
+  account: ResolvedAccount,
+  level: CanonicalLevel,
+  entityMetaId: string,
+  parentMetaId: string | null,
+  active: boolean,
+): Promise<unknown> {
+  if (account.provider === "google") {
+    const customer = googleCustomer(account.accessToken, account.metaAccountId);
+    return (await setGoogleEntityStatus(customer, account.metaAccountId, level, entityMetaId, active, parentMetaId)).raw;
+  }
+  const client = new MetaClient({ accessToken: account.accessToken });
+  return (active ? await reactivateEntity(client, entityMetaId) : await pauseEntity(client, entityMetaId)).raw;
+}
+
+async function applyBudgetChange(
+  account: ResolvedAccount,
+  level: CanonicalLevel,
+  entityMetaId: string,
+  newBudget: number,
+): Promise<unknown> {
+  if (account.provider === "google") {
+    if (level !== "campaign") {
+      throw new Error("Ajuste de budget no Google Ads (V1) é só no nível campanha");
+    }
+    const customer = googleCustomer(account.accessToken, account.metaAccountId);
+    return (await updateGoogleCampaignBudget(customer, entityMetaId, newBudget)).raw;
+  }
+  const client = new MetaClient({ accessToken: account.accessToken });
+  return (await updateDailyBudget(client, entityMetaId, newBudget)).raw;
+}
 
 /**
  * Action Executor — PROJECT.md 6.5. Recebe uma action já aprovada, valida
@@ -185,7 +231,7 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
     await Promise.all([
       supabase
         .from("entities")
-        .select("status, daily_budget")
+        .select("status, daily_budget, parent_meta_id")
         .eq("ad_account_id", typedAction.ad_account_id)
         .eq("level", entityLevel)
         .eq("meta_id", entityMetaId)
@@ -284,7 +330,7 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
     return { status: "blocked", violations: violations.map((v) => v.message) };
   }
 
-  const client = new MetaClient({ accessToken: account.accessToken });
+  const parentMetaId = (entity as { parent_meta_id?: string | null })?.parent_meta_id ?? null;
   const previousState: Record<string, unknown> = {};
 
   try {
@@ -294,7 +340,7 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
       case "PAUSE_AD":
       case "PAUSE_ADSET": {
         previousState.status = entity?.status ?? null;
-        metaResponse = (await pauseEntity(client, entityMetaId)).raw;
+        metaResponse = await applyStatusChange(account, entityLevel, entityMetaId, parentMetaId, false);
         await supabase
           .from("entities")
           .update({ status: "PAUSED" })
@@ -305,7 +351,7 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
       }
       case "REACTIVATE": {
         previousState.status = entity?.status ?? null;
-        metaResponse = (await reactivateEntity(client, entityMetaId)).raw;
+        metaResponse = await applyStatusChange(account, entityLevel, entityMetaId, parentMetaId, true);
         await supabase
           .from("entities")
           .update({ status: "ACTIVE" })
@@ -320,7 +366,7 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
           throw new Error("Ação de budget sem novo valor calculável (params.new_daily_budget/change_pct)");
         }
         previousState.daily_budget = currentBudget;
-        metaResponse = (await updateDailyBudget(client, entityMetaId, newBudget)).raw;
+        metaResponse = await applyBudgetChange(account, entityLevel, entityMetaId, newBudget);
         await supabase
           .from("entities")
           .update({ daily_budget: newBudget })
@@ -330,6 +376,10 @@ export async function executeAction(actionId: string): Promise<ExecuteActionResu
         break;
       }
       case "DUPLICATE_ADSET": {
+        if (account.provider === "google") {
+          throw new Error("DUPLICATE_ADSET não é suportado no Google Ads (V1)");
+        }
+        const client = new MetaClient({ accessToken: account.accessToken });
         const result = await duplicateAdset(client, entityMetaId);
         metaResponse = result.raw;
         previousState.created_adset_meta_id = result.newAdsetMetaId;
@@ -391,7 +441,17 @@ export async function revertAction(actionId: string): Promise<ExecuteActionResul
   const previousState = typedAction.previous_state;
 
   const account = await resolveAdAccountForSync(typedAction.ad_account_id);
-  const client = new MetaClient({ accessToken: account.accessToken });
+
+  // parent_meta_id é necessário para reverter status de anúncio no Google
+  // (resource name composto adGroupId~adId).
+  const { data: entityRow } = await supabase
+    .from("entities")
+    .select("parent_meta_id")
+    .eq("ad_account_id", typedAction.ad_account_id)
+    .eq("level", entityLevel)
+    .eq("meta_id", entityMetaId)
+    .maybeSingle();
+  const parentMetaId = (entityRow as { parent_meta_id?: string | null })?.parent_meta_id ?? null;
 
   try {
     let metaResponse: unknown;
@@ -408,9 +468,13 @@ export async function revertAction(actionId: string): Promise<ExecuteActionResul
           "Estado anterior desconhecido (entidade não estava sincronizada na execução) — reversão automática recusada, requer intervenção manual",
         );
       }
-      metaResponse = (
-        previousStatus === "ACTIVE" ? await reactivateEntity(client, entityMetaId) : await pauseEntity(client, entityMetaId)
-      ).raw;
+      metaResponse = await applyStatusChange(
+        account,
+        entityLevel,
+        entityMetaId,
+        parentMetaId,
+        previousStatus === "ACTIVE",
+      );
       await supabase
         .from("entities")
         .update({ status: previousStatus })
@@ -419,7 +483,7 @@ export async function revertAction(actionId: string): Promise<ExecuteActionResul
         .eq("meta_id", entityMetaId);
     } else if ("daily_budget" in previousState) {
       const previousBudget = Number(previousState.daily_budget);
-      metaResponse = (await updateDailyBudget(client, entityMetaId, previousBudget)).raw;
+      metaResponse = await applyBudgetChange(account, entityLevel, entityMetaId, previousBudget);
       await supabase
         .from("entities")
         .update({ daily_budget: previousBudget })
@@ -427,8 +491,10 @@ export async function revertAction(actionId: string): Promise<ExecuteActionResul
         .eq("level", entityLevel)
         .eq("meta_id", entityMetaId);
     } else if ("created_adset_meta_id" in previousState) {
+      // Só Meta cria adset por duplicação (Google não faz DUPLICATE_ADSET na V1).
       const createdAdsetId = previousState.created_adset_meta_id as string | null;
       if (createdAdsetId) {
+        const client = new MetaClient({ accessToken: account.accessToken });
         metaResponse = (await pauseEntity(client, createdAdsetId)).raw;
       }
     } else {

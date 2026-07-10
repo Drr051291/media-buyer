@@ -82,6 +82,18 @@ function str(v: unknown): string {
   return v == null ? "" : String(v);
 }
 
+/**
+ * Normaliza o status para o vocabulário CANÔNICO (o mesmo do Meta), para que
+ * guardrails, executor e dashboards funcionem uniformes entre providers:
+ *   Google 'ENABLED' → 'ACTIVE'; 'PAUSED'/'REMOVED' inalterados.
+ * As mutações (BLOCO 6) traduzem de volta ACTIVE → ENABLED ao chamar a API.
+ */
+export function mapCanonicalStatus(raw: unknown): string | null {
+  const s = str(raw).toUpperCase();
+  if (!s) return null;
+  return s === "ENABLED" ? "ACTIVE" : s;
+}
+
 export function normalizeEntityRow(level: CanonicalLevel, row: GaqlRow): ProviderEntity | null {
   if (level === "campaign") {
     const id = str(row.campaign?.id);
@@ -91,7 +103,7 @@ export function normalizeEntityRow(level: CanonicalLevel, row: GaqlRow): Provide
       externalId: id,
       parentExternalId: null,
       name: str(row.campaign?.name) || id,
-      status: row.campaign?.status != null ? str(row.campaign.status) : null,
+      status: mapCanonicalStatus(row.campaign?.status),
       objective: row.campaign?.advertising_channel_type != null
         ? str(row.campaign.advertising_channel_type)
         : null,
@@ -109,7 +121,7 @@ export function normalizeEntityRow(level: CanonicalLevel, row: GaqlRow): Provide
       externalId: id,
       parentExternalId: str(row.campaign?.id) || null,
       name: str(row.ad_group?.name) || id,
-      status: row.ad_group?.status != null ? str(row.ad_group.status) : null,
+      status: mapCanonicalStatus(row.ad_group?.status),
       objective: null,
       dailyBudget: null, // budget do Google fica no campaign_budget (nível campanha)
     };
@@ -122,7 +134,7 @@ export function normalizeEntityRow(level: CanonicalLevel, row: GaqlRow): Provide
     externalId: id,
     parentExternalId: str(row.ad_group?.id) || null,
     name: str(row.ad_group_ad?.ad?.name) || id,
-    status: row.ad_group_ad?.status != null ? str(row.ad_group_ad.status) : null,
+    status: mapCanonicalStatus(row.ad_group_ad?.status),
     objective: null,
     dailyBudget: null,
   };

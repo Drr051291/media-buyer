@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       googleAdsProvider.fetchInsights(refreshToken, customerId, start, end),
     ]);
 
-    const activeCampaigns = campaigns.filter((c) => c.status === "ENABLED").length;
+    const activeCampaigns = campaigns.filter((c) => c.status === "ACTIVE").length;
     const spend = insights.reduce((sum, r) => sum + r.spend, 0);
     const conversions = insights.reduce((sum, r) => sum + r.conversions, 0);
 

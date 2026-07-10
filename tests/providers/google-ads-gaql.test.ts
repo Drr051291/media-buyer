@@ -67,6 +67,13 @@ describe("normalizeEntityRow", () => {
   it("descarta linha sem id", () => {
     expect(normalizeEntityRow("campaign", { campaign: {} })).toBeNull();
   });
+
+  it("normaliza status para o vocabulário canônico (ENABLED → ACTIVE)", () => {
+    const enabled = normalizeEntityRow("campaign", { campaign: { id: "1", status: "ENABLED" } });
+    const paused = normalizeEntityRow("adset", { ad_group: { id: "2", status: "PAUSED" } });
+    expect(enabled?.status).toBe("ACTIVE");
+    expect(paused?.status).toBe("PAUSED");
+  });
 });
 
 describe("normalizeInsightRow", () => {

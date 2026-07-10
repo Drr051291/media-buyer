@@ -109,7 +109,9 @@ export async function updateJobProgress(
 export interface AdAccountForSync {
   id: string;
   metaAccountId: string;
+  /** Segredo do Vault: access token (Meta) OU refresh_token (Google). */
   accessToken: string;
+  provider: "meta" | "google";
 }
 
 /** Resolve a conta + token descriptografado (Vault) para um sync_jobs.ad_account_id. */
@@ -119,7 +121,7 @@ export async function resolveAdAccountForSync(adAccountId: string): Promise<AdAc
 
   const { data: account, error } = await supabase
     .from("ad_accounts")
-    .select("id, meta_account_id, meta_tokens(vault_secret_id)")
+    .select("id, meta_account_id, provider, meta_tokens(vault_secret_id)")
     .eq("id", adAccountId)
     .single();
 
@@ -131,7 +133,12 @@ export async function resolveAdAccountForSync(adAccountId: string): Promise<AdAc
   const accessToken = await readSecret(tokenRow.vault_secret_id);
   if (!accessToken) throw new Error("Token indisponível no Vault");
 
-  return { id: account.id, metaAccountId: account.meta_account_id, accessToken };
+  return {
+    id: account.id,
+    metaAccountId: account.meta_account_id,
+    accessToken,
+    provider: (account.provider as "meta" | "google") ?? "meta",
+  };
 }
 
 /**
