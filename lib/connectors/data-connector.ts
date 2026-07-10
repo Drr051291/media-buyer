@@ -24,6 +24,7 @@ export type Capability =
   | "inventory"
   | "products"
   | "sessions"
+  | "conversions"
   | "ltv";
 
 export type BusinessEventType =

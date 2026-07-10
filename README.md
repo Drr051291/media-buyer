@@ -35,7 +35,18 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
    SUPABASE_SERVICE_ROLE_KEY=
    CRON_SECRET=              # protege /api/cron/*, gere um valor aleatório
    META_API_VERSION=v23.0
+   # Conector GA4 (opcional — habilita o cruzamento de comportamento com mídia):
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
+   GOOGLE_OAUTH_REDIRECT_URI=http://localhost:3000/api/connectors/ga4/oauth/callback
    ```
+
+   Para o GA4, crie um projeto no Google Cloud Console, ative a **Google
+   Analytics Data API** e a **Admin API**, configure a tela de consentimento
+   OAuth (escopo `analytics.readonly`) e crie um **ID do cliente OAuth** do tipo
+   "Aplicativo da Web" com o redirect URI acima (byte a byte). O cliente conecta
+   pelo wizard em **Integrações → Google Analytics 4** (OAuth, sem tocar em
+   JSON). Ver `ETAPA2-GA4.md`, Anexo A.
 
 3. Rode as migrations (`supabase/migrations/*.sql`) no seu projeto — via
    Supabase CLI (`supabase db push`) ou colando no SQL Editor do dashboard, na
@@ -59,6 +70,9 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
      escritas por `platform_admins`; kill switch reaproveita
      `organizations.status='suspended'` e `ad_accounts.status='paused'` (já
      existiam desde a Fase 1/2, nunca usados até agora)
+   - `connections`, `business_events`, `contacts`, `products`, `attributions`
+     + RLS (Etapa 2 Onda 2.0) e `ga4_metrics_daily` (Onda 2.1 — conector GA4,
+     upsert idempotente por chave natural; alimenta o cruzamento no snapshot)
 
 3.1. Defina também `ANTHROPIC_API_KEY` no `.env.local` — o Reasoner e o
    relatório semanal chamam a API da Anthropic diretamente.

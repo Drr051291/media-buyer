@@ -136,6 +136,9 @@ export default async function AccountDetailPage({
           <Link href={`/app/accounts/${id}/insights`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Insights
           </Link>
+          <Link href={`/app/accounts/${id}/analytics`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
+            Analytics (GA4)
+          </Link>
           <Link href={`/app/accounts/${id}/chat`} className="text-sm text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Chat
           </Link>
