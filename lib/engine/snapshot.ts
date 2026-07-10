@@ -16,6 +16,7 @@ import {
 import { runSignalScan, type Signal } from "./signals";
 import type { EntityLevel, EntityRef } from "./signals/types";
 import type { DailyAnalysisOutput } from "./reasoner";
+import { buildGa4SnapshotSection, type Ga4SnapshotSection } from "./ga4-snapshot";
 
 const SNAPSHOT_WINDOW_DAYS = 30;
 const DEFAULT_CONVERSION_EVENT = "purchase";
@@ -51,6 +52,8 @@ export interface AccountSnapshotPayload {
   business_context_configured: boolean;
   conversion_event: string;
   entities: SnapshotEntityEntry[];
+  /** Cruzamento com GA4 (device/origem/landing que converte). null se sem GA4. */
+  ga4?: Ga4SnapshotSection | null;
 }
 
 function round2(n: number | null): number | null {
@@ -92,7 +95,7 @@ export async function buildAccountSnapshot(adAccountId: string, asOfIso: string)
 
   const [{ data: account, error: accountError }, { data: context }, { data: entities }, { data: metricsRows }] =
     await Promise.all([
-      supabase.from("ad_accounts").select("id, currency").eq("id", adAccountId).single(),
+      supabase.from("ad_accounts").select("id, currency, org_id").eq("id", adAccountId).single(),
       supabase
         .from("business_context")
         .select("objetivo_principal, cpa_alvo, cpa_maximo, business_model")
@@ -219,12 +222,18 @@ export async function buildAccountSnapshot(adAccountId: string, asOfIso: string)
   processLevel("adset", adsetEntities, adsetRows);
   processLevel("ad", adEntities, adRowsMap);
 
+  // Bridge GA4: cruzamento de comportamento (device/origem/landing que
+  // converte) para embasar a compra de mídia. Falha fechado — sem GA4 o
+  // snapshot segue normalmente com ga4=null.
+  const ga4 = await buildGa4SnapshotSection(adAccountId, account.org_id, asOfIso).catch(() => null);
+
   return {
     date: asOfIso,
     currency: account.currency,
     business_context_configured: !!context?.objetivo_principal,
     conversion_event: eventType,
     entities: entries,
+    ga4,
   };
 }
 

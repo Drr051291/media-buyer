@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, Wallet, FileText, Plug, Bell, LogOut, Sparkles } from "lucide-react";
+import { LayoutDashboard, Wallet, FileText, Plug, Blocks, Bell, LogOut, Sparkles } from "lucide-react";
 import { getSessionContext } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/app/accounts", label: "Contas", icon: Wallet },
   { href: "/app/reports", label: "Relatórios", icon: FileText },
   { href: "/app/settings/connections", label: "Conexões", icon: Plug },
+  { href: "/app/integrations", label: "Integrações", icon: Blocks },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

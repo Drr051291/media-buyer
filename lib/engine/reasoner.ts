@@ -77,7 +77,8 @@ Regras de decisão (obrigatórias):
 - Sempre ancore a justificativa (reasoning) no Business Context da conta (ticket médio, margem, estratégia, restrições) — a mesma métrica pode ser boa para uma conta e péssima para outra.
 - Respeite qualquer restrição listada em business_context.restricoes (ex: "nunca pausar a campanha X").
 - Escreva diagnosis, finding, reasoning e expected_impact em português, em linguagem de negócio (não jargão técnico de mídia).
-- health_score (0-100) reflete a saúde geral da conta na janela de 7 dias, considerando os sinais críticos/warning presentes.`;
+- health_score (0-100) reflete a saúde geral da conta na janela de 7 dias, considerando os sinais críticos/warning presentes.
+- Quando "account_snapshot.ga4" estiver presente, cruze o comportamento pós-clique (Google Analytics 4) com o gasto da Meta: use device/origem/landing que mais converte e as "observations" para decidir ONDE alocar budget. Ex.: se o GA4 mostra que um device converte muito acima do seu share de tráfego, priorize campanhas/segmentações que o favoreçam; se uma landing page converte mal apesar do tráfego, sinalize atrito de LP (FUNNEL_BREAK) em vez de culpar a mídia. Trate ga4 como leitura de comportamento (sem gasto por linha) — combine com o CPA/ROAS da Meta, não substitua. Se ga4 for null/ausente, não invente dados de comportamento.`;
 
 export interface RunDailyAnalysisInput {
   businessContext: BusinessContextProfile | null;
