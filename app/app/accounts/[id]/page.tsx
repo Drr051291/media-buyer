@@ -71,11 +71,13 @@ export default async function AccountDetailPage({
   const supabase = await createClient();
   const { data: account } = await supabase
     .from("ad_accounts")
-    .select("id, name, currency, status")
+    .select("id, name, currency, status, provider")
     .eq("id", id)
     .maybeSingle();
 
   if (!account) notFound();
+
+  const providerLabel = account.provider === "google" ? "Google Ads" : "Meta";
 
   const today = new Date();
   const todayIso = isoDate(today);
@@ -127,7 +129,12 @@ export default async function AccountDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-4xl font-bold text-primary">{account.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-heading text-4xl font-bold text-primary">{account.name}</h1>
+            <span className="rounded-full border border-outline-variant px-2 py-0.5 text-xs text-on-surface-variant">
+              {providerLabel}
+            </span>
+          </div>
           <p className="text-sm text-on-surface-variant">
             Últimos {WINDOW_DAYS} dias vs {WINDOW_DAYS} dias anteriores
           </p>

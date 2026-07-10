@@ -12,7 +12,7 @@ export const STATE_COOKIE = "gads_oauth_state";
  * consentimento do Google. O consentimento não abre em fetch/iframe — precisa
  * ser um redirect top-level (o wizard usa window.location.href).
  */
-export async function GET(request: Request) {
+export async function GET() {
   try {
     await requireOrgAdmin();
 

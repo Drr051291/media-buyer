@@ -23,9 +23,10 @@ import { resolveGoogleAccount } from "./credentials";
  */
 
 const LEVELS: CanonicalLevel[] = ["campaign", "adset", "ad"];
+// Janela de 7 dias no incremental: já re-busca os últimos dias, cobrindo o
+// ajuste retroativo de conversões do Google (atribuição).
 const INSIGHTS_WINDOW_DAYS = 7;
 const BACKFILL_CHUNK_DAYS = 14;
-const REFETCH_DAYS = 3; // o Google ajusta conversões retroativamente (atribuição)
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
