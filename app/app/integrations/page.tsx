@@ -1,24 +1,34 @@
 import Link from "next/link";
-import { BarChart3, Webhook, ArrowRight } from "lucide-react";
+import { BarChart3, Webhook, ArrowRight, Contact } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * Marketplace de conexões de dados (ETAPA2 §2.3). GA4 é o primeiro conector da
- * Onda 2.1 — traz sessões, conversões, receita, landing page e device que
- * converte para cruzar com o gasto da Meta e embasar a compra de mídia.
+ * Marketplace de conexões de dados (ETAPA2 §2.3). GA4 (analytics) e HubSpot
+ * (CRM) são os primeiros conectores da Onda 2.1 — cruzam sessões, conversões,
+ * leads e negócios com o gasto da Meta para embasar a compra de mídia.
  */
 export default async function IntegrationsPage() {
   const supabase = await createClient();
-  const { data: ga4 } = await supabase
-    .from("connections")
-    .select("id, status, ga4_property_id, last_sync_at")
-    .eq("connector_id", "ga4")
-    .maybeSingle();
+  const [{ data: ga4 }, { data: hubspot }] = await Promise.all([
+    supabase
+      .from("connections")
+      .select("id, status, ga4_property_id, last_sync_at")
+      .eq("connector_id", "ga4")
+      .maybeSingle(),
+    supabase
+      .from("connections")
+      .select("id, status, hubspot_portal_id, last_sync_at")
+      .eq("connector_id", "hubspot")
+      .maybeSingle(),
+  ]);
 
   const ga4Connected = Boolean(ga4 && ga4.status === "active" && ga4.ga4_property_id);
+  const hubspotConnected = Boolean(
+    hubspot && hubspot.status === "active" && hubspot.hubspot_portal_id,
+  );
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -50,6 +60,30 @@ export default async function IntegrationsPage() {
           <CardContent className="mt-auto">
             <Button render={<Link href="/app/integrations/ga4" />} className="w-full gap-2">
               {ga4Connected ? "Gerenciar conexão" : "Conectar Google Analytics"}
+              <ArrowRight className="size-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="mb-2 flex items-start justify-between">
+              <div className="flex size-11 items-center justify-center rounded-lg bg-primary-container text-on-primary-container">
+                <Contact className="size-5" />
+              </div>
+              <Badge variant={hubspotConnected ? "default" : "secondary"}>
+                {hubspotConnected ? "Conectado" : "Disponível"}
+              </Badge>
+            </div>
+            <CardTitle className="text-lg">HubSpot</CardTitle>
+            <CardDescription>
+              Leads, reuniões e negócios do CRM. Fecha o funil: CAC real, pipeline e receita por
+              campanha — não só o CPL do pixel.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button render={<Link href="/app/integrations/hubspot" />} className="w-full gap-2">
+              {hubspotConnected ? "Gerenciar conexão" : "Conectar HubSpot"}
               <ArrowRight className="size-4" />
             </Button>
           </CardContent>

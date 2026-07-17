@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { enqueueMissingJobs, requireCronSecret } from "@/lib/engine/sync-orchestrator";
 import { CHUNKED_JOB_KINDS, processOneChunkOfKind, runTokenHealthCheck } from "@/lib/engine/sync-workers";
 import { processNextGa4Incremental, processNextGa4BackfillChunk } from "@/lib/connectors/ga4/sync";
+import { processNextHubspotSlice } from "@/lib/connectors/hubspot/sync";
 
 /**
  * Worker único, agendado 1x/dia (plano Hobby da Vercel só permite cron
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
     CHUNKED_JOB_KINDS.map((kind) => [kind, 0]),
   );
   const ga4Counts = { incremental: 0, backfill: 0 };
+  const hubspotCounts = { slices: 0, rows: 0 };
 
   // Round-robin entre os tipos de sync_jobs (Meta) + o conector GA4
   // (connections.sync_cursor) até o orçamento de tempo acabar ou uma volta
@@ -77,6 +79,21 @@ export async function GET(request: Request) {
       }
     }
 
+    // HubSpot: uma fatia (1 página por objeto) por volta. O backfill de 180d
+    // e o incremental diário usam o mesmo cursor — o orquestrador prioriza
+    // conexões com paginação pendente.
+    if (Date.now() - startedAt < TIME_BUDGET_MS) {
+      const hubspot = await processNextHubspotSlice().catch(() => ({
+        processed: false as const,
+        rows: 0,
+      }));
+      if (hubspot.processed) {
+        hubspotCounts.slices += 1;
+        hubspotCounts.rows += hubspot.rows ?? 0;
+        processedAnyThisRound = true;
+      }
+    }
+
     if (!processedAnyThisRound) break;
   }
 
@@ -85,5 +102,6 @@ export async function GET(request: Request) {
     tokenHealth,
     chunksProcessed: processedCounts,
     ga4: ga4Counts,
+    hubspot: hubspotCounts,
   });
 }

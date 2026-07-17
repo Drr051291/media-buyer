@@ -39,6 +39,10 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
    GOOGLE_CLIENT_ID=
    GOOGLE_CLIENT_SECRET=
    GOOGLE_OAUTH_REDIRECT_URI=http://localhost:3000/api/connectors/ga4/oauth/callback
+   # Conector HubSpot (opcional — fecha o funil anúncio → lead → venda):
+   HUBSPOT_CLIENT_ID=
+   HUBSPOT_CLIENT_SECRET=
+   HUBSPOT_OAUTH_REDIRECT_URI=http://localhost:3000/api/connectors/hubspot/oauth/callback
    ```
 
    Para o GA4, crie um projeto no Google Cloud Console, ative a **Google
@@ -47,6 +51,12 @@ Vault + pg_cron), Anthropic Claude (`claude-sonnet-5` para análise), Vitest.
    "Aplicativo da Web" com o redirect URI acima (byte a byte). O cliente conecta
    pelo wizard em **Integrações → Google Analytics 4** (OAuth, sem tocar em
    JSON). Ver `ETAPA2-GA4.md`, Anexo A.
+
+   Para o HubSpot, crie um app público numa conta de desenvolvedor HubSpot
+   (não precisa de marketplace nem review), configure os escopos read-only e o
+   redirect URI acima. O cliente conecta pelo wizard em **Integrações →
+   HubSpot** (OAuth ou token de Private App). Passo a passo completo em
+   `ETAPA-HUBSPOT.md`, seção 3.
 
 3. Rode as migrations (`supabase/migrations/*.sql`) no seu projeto — via
    Supabase CLI (`supabase db push`) ou colando no SQL Editor do dashboard, na
