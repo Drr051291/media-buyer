@@ -39,12 +39,16 @@ export function Ga4Wizard({
   initialStep,
   oauthError,
   alreadyConfigured,
+  currentPropertyName,
+  currentPropertyId,
 }: {
   adAccounts: AdAccount[];
   initialConnectionId: string | null;
   initialStep?: Step;
   oauthError: string | null;
   alreadyConfigured: boolean;
+  currentPropertyName?: string | null;
+  currentPropertyId?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(initialStep ?? "connect");
@@ -99,6 +103,7 @@ export function Ga4Wizard({
         body: JSON.stringify({
           connectionId,
           propertyId: selectedProperty,
+          propertyName: properties.find((p) => p.propertyId === selectedProperty)?.displayName,
           adAccountId: linkAdAccount || null,
         }),
       });
@@ -196,9 +201,20 @@ export function Ga4Wizard({
               )}
 
               {alreadyConfigured && (
-                <p className="rounded-lg border border-outline-variant/50 bg-surface-bright p-3 text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-outline-variant/50 bg-surface-bright p-3 text-sm text-on-surface-variant">
+                  {(currentPropertyName || currentPropertyId) && (
+                    <p className="mb-1 text-on-surface">
+                      Propriedade conectada:{" "}
+                      <strong>{currentPropertyName ?? "Propriedade GA4"}</strong>
+                      {currentPropertyId ? (
+                        <span className="ml-1 font-mono text-xs text-on-surface-variant">
+                          (ID: {currentPropertyId})
+                        </span>
+                      ) : null}
+                    </p>
+                  )}
                   Já existe uma conexão GA4. Reconectar substitui as credenciais sem duplicar a conexão.
-                </p>
+                </div>
               )}
             </div>
           )}

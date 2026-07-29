@@ -14,11 +14,13 @@ export default async function IntegrationsPage() {
   const supabase = await createClient();
   const { data: ga4 } = await supabase
     .from("connections")
-    .select("id, status, ga4_property_id, last_sync_at")
+    .select("id, status, ga4_property_id, ga4_property_name, last_sync_at")
     .eq("connector_id", "ga4")
     .maybeSingle();
 
   const ga4Connected = Boolean(ga4 && ga4.status === "active" && ga4.ga4_property_id);
+  // 'properties/123456' -> '123456' para mostrar o id enxuto ao lado do nome.
+  const ga4PropertyNumericId = ga4?.ga4_property_id?.replace(/^properties\//, "") ?? null;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -47,6 +49,21 @@ export default async function IntegrationsPage() {
               atribuição por session stitching.
             </CardDescription>
           </CardHeader>
+          {ga4Connected && (
+            <CardContent className="pb-4">
+              <div className="rounded-lg border border-outline-variant/50 bg-surface-bright p-3">
+                <p className="text-xs font-medium text-on-surface-variant">Propriedade conectada</p>
+                <p className="truncate font-medium text-on-surface" title={ga4?.ga4_property_name ?? undefined}>
+                  {ga4?.ga4_property_name ?? "Propriedade GA4"}
+                </p>
+                {ga4PropertyNumericId && (
+                  <p className="mt-0.5 font-mono text-xs text-on-surface-variant">
+                    ID: {ga4PropertyNumericId}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          )}
           <CardContent className="mt-auto">
             <Button render={<Link href="/app/integrations/ga4" />} className="w-full gap-2">
               {ga4Connected ? "Gerenciar conexão" : "Conectar Google Analytics"}
