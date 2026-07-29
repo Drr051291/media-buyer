@@ -7,13 +7,14 @@ export interface Ga4ConnectionRow {
   org_id: string;
   ad_account_id: string | null;
   ga4_property_id: string | null;
+  ga4_property_name: string | null;
   status: string;
   credentials_vault_id: string | null;
   sync_cursor: Record<string, unknown>;
 }
 
 const CONNECTION_FIELDS =
-  "id, org_id, ad_account_id, ga4_property_id, status, credentials_vault_id, sync_cursor";
+  "id, org_id, ad_account_id, ga4_property_id, ga4_property_name, status, credentials_vault_id, sync_cursor";
 
 export async function getGa4Connection(connectionId: string): Promise<Ga4ConnectionRow | null> {
   const supabase = createServiceRoleClient();

@@ -34,6 +34,7 @@ export async function GET(request: Request) {
 const selectSchema = z.object({
   connectionId: z.string().uuid(),
   propertyId: z.string().regex(/^properties\/\d+$/, "propertyId invalido"),
+  propertyName: z.string().trim().min(1).max(200).optional(),
   adAccountId: z.string().uuid().nullable().optional(),
 });
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const { connectionId, propertyId, adAccountId } = parsed.data;
+    const { connectionId, propertyId, propertyName, adAccountId } = parsed.data;
 
     const connection = await getGa4Connection(connectionId);
     if (!connection || connection.org_id !== orgId) {
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
 
     const supabase = createServiceRoleClient();
     const update: Record<string, unknown> = { ga4_property_id: propertyId };
+    // Nome amigavel da propriedade (para exibir no painel). Se o cliente nao
+    // mandar, mantem o que ja estava — nunca sobrescreve com vazio.
+    if (propertyName) update.ga4_property_name = propertyName;
     if (adAccountId !== undefined) update.ad_account_id = adAccountId;
 
     const { error } = await supabase.from("connections").update(update).eq("id", connectionId);

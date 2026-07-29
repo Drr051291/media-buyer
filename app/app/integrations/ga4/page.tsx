@@ -24,7 +24,7 @@ export default async function Ga4WizardPage({
   // Conexão existente (para "gerenciar" e retomar em passo posterior).
   const { data: existing } = await supabase
     .from("connections")
-    .select("id, status, ga4_property_id")
+    .select("id, status, ga4_property_id, ga4_property_name")
     .eq("connector_id", "ga4")
     .maybeSingle();
 
@@ -44,6 +44,8 @@ export default async function Ga4WizardPage({
         initialStep={sp.step === "property" ? "property" : undefined}
         oauthError={sp.error ?? null}
         alreadyConfigured={Boolean(existing?.ga4_property_id)}
+        currentPropertyName={existing?.ga4_property_name ?? null}
+        currentPropertyId={existing?.ga4_property_id?.replace(/^properties\//, "") ?? null}
       />
     </div>
   );
