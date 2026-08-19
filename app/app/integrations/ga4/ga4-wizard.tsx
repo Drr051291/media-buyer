@@ -24,6 +24,13 @@ const OAUTH_ERROR_LABEL: Record<string, string> = {
   state_invalido: "A sessão do fluxo expirou. Tente conectar novamente.",
   sem_refresh_token: "O Google não devolveu o token de atualização. Reconecte para reconsentir.",
   nao_autorizado: "Apenas owner/admin da organização pode conectar.",
+  // Etapas do callback (causa acionável em vez do genérico anterior):
+  troca_token:
+    "Não consegui trocar o código do Google por um token. Confira GOOGLE_CLIENT_ID/SECRET e o Redirect URI (precisa bater byte a byte com o do Google Cloud).",
+  cofre:
+    "Não consegui guardar a credencial no cofre (Supabase Vault). Rode a migration 0012_vault_fix.sql e confirme que a extensão Vault/pgsodium está ativa no projeto.",
+  banco:
+    "Não consegui salvar a conexão no banco. Confirme que as migrations 0010 a 0013 foram aplicadas no Supabase.",
   falha_conexao: "Falha ao concluir a conexão. Tente novamente.",
 };
 
@@ -38,6 +45,7 @@ export function Ga4Wizard({
   initialConnectionId,
   initialStep,
   oauthError,
+  oauthDetail,
   alreadyConfigured,
   currentPropertyName,
   currentPropertyId,
@@ -46,6 +54,7 @@ export function Ga4Wizard({
   initialConnectionId: string | null;
   initialStep?: Step;
   oauthError: string | null;
+  oauthDetail?: string | null;
   alreadyConfigured: boolean;
   currentPropertyName?: string | null;
   currentPropertyId?: string | null;
@@ -60,6 +69,8 @@ export function Ga4Wizard({
   const [error, setError] = useState<string | null>(
     oauthError ? (OAUTH_ERROR_LABEL[oauthError] ?? "Erro no fluxo de conexão.") : null,
   );
+  // Detalhe técnico da falha (etapa cofre/banco/troca_token) para diagnóstico.
+  const [detail, setDetail] = useState<string | null>(oauthError ? (oauthDetail ?? null) : null);
   const [pending, setPending] = useState(false);
 
   // Ao voltar do OAuth (step=property), carrega as propriedades acessíveis.
@@ -95,6 +106,7 @@ export function Ga4Wizard({
 
   async function saveProperty() {
     setError(null);
+    setDetail(null);
     setPending(true);
     try {
       const res = await fetch("/api/connectors/ga4/properties", {
@@ -125,6 +137,7 @@ export function Ga4Wizard({
 
   async function confirm() {
     setError(null);
+    setDetail(null);
     setPending(true);
     try {
       const res = await fetch("/api/connectors/ga4/confirm", {
@@ -285,7 +298,16 @@ export function Ga4Wizard({
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-destructive">{error}</p>
+              {detail && (
+                <p className="font-mono text-xs break-words text-on-surface-variant/80">
+                  Detalhe técnico: {detail}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
 
         <CardFooter className="flex justify-between border-t-0 bg-transparent">

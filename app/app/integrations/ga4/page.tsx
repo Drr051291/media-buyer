@@ -9,7 +9,7 @@ import { Ga4Wizard } from "./ga4-wizard";
 export default async function Ga4WizardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connectionId?: string; step?: string; error?: string }>;
+  searchParams: Promise<{ connectionId?: string; step?: string; error?: string; detail?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -43,6 +43,7 @@ export default async function Ga4WizardPage({
         initialConnectionId={sp.connectionId ?? existing?.id ?? null}
         initialStep={sp.step === "property" ? "property" : undefined}
         oauthError={sp.error ?? null}
+        oauthDetail={sp.detail ?? null}
         alreadyConfigured={Boolean(existing?.ga4_property_id)}
         currentPropertyName={existing?.ga4_property_name ?? null}
         currentPropertyId={existing?.ga4_property_id?.replace(/^properties\//, "") ?? null}
