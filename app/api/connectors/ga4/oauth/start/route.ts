@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
 import { requireOrgAdmin, UnauthorizedError } from "@/lib/auth/require-org";
 import { consentUrl } from "@/lib/connectors/ga4/oauth";
 
@@ -21,30 +20,28 @@ export async function GET(request: Request) {
     const adAccountId = url.searchParams.get("adAccountId");
 
     const state = randomBytes(32).toString("hex");
-    const cookieStore = await cookies();
     const secure = process.env.NODE_ENV === "production";
-
-    cookieStore.set(STATE_COOKIE, state, {
+    const cookieOpts = {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "lax" as const,
       secure,
       path: "/",
       maxAge: 600, // 10 min: janela do fluxo de consentimento
-    });
+    };
 
+    // Setar os cookies NO objeto de resposta do redirect — e não via cookies()
+    // do next/headers. No App Router, mutações naquele store nem sempre
+    // acompanham um NextResponse.redirect() criado à mão; o state se perderia e
+    // o callback rejeitaria como "state_invalido". Setar na resposta é garantido.
+    const response = NextResponse.redirect(consentUrl(state));
+    response.cookies.set(STATE_COOKIE, state, cookieOpts);
     if (adAccountId) {
-      cookieStore.set(LINK_COOKIE, adAccountId, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure,
-        path: "/",
-        maxAge: 600,
-      });
+      response.cookies.set(LINK_COOKIE, adAccountId, cookieOpts);
     } else {
-      cookieStore.delete(LINK_COOKIE);
+      // Limpa um vínculo de tentativa anterior (expira imediatamente).
+      response.cookies.set(LINK_COOKIE, "", { ...cookieOpts, maxAge: 0 });
     }
-
-    return NextResponse.redirect(consentUrl(state));
+    return response;
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
