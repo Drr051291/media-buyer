@@ -16,6 +16,23 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb);
 }
 
+/**
+ * Mensagem curta e não sensível de um erro para diagnóstico no wizard. Cobre
+ * tanto `Error` nativo quanto o `PostgrestError` do supabase-js (objeto simples
+ * com `message`/`code` — NÃO é instância de Error, por isso o check antigo o
+ * ignorava). Nunca inclui o token: só message + code do Postgres/SDK.
+ */
+function errorDetail(error: unknown): string {
+  if (error && typeof error === "object") {
+    const e = error as { code?: unknown; message?: unknown };
+    const code = typeof e.code === "string" ? e.code : "";
+    const msg = typeof e.message === "string" ? e.message : "";
+    const combined = [code && `[${code}]`, msg].filter(Boolean).join(" ").trim();
+    if (combined) return combined.slice(0, 180);
+  }
+  return "";
+}
+
 function redirectToWizard(request: Request, params: Record<string, string>): NextResponse {
   const url = new URL(WIZARD_PATH, new URL(request.url).origin);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -77,7 +94,12 @@ export async function GET(request: Request) {
     if (existingError) throw existingError;
 
     stage = "cofre";
-    const vaultSecretId = await createSecret(refreshToken, `ga4_refresh:${orgId}`);
+    // Nome único por tentativa: o Vault exige UNIQUE em vault.secrets.name, e um
+    // nome fixo colide na re-tentativa — uma tentativa anterior que criou o
+    // segredo mas falhou depois deixa um órfão com esse nome, travando toda
+    // reconexão na etapa "cofre". Guardamos o id retornado, então o nome não
+    // precisa ser estável.
+    const vaultSecretId = await createSecret(refreshToken, `ga4_refresh:${orgId}:${Date.now()}`);
     stage = "banco";
 
     let connectionId: string;
@@ -131,7 +153,7 @@ export async function GET(request: Request) {
       return redirectToWizard(request, { error: "nao_autorizado" });
     }
     console.error(`[/api/connectors/ga4/oauth/callback] stage=${stage}`, error);
-    const detail = error instanceof Error ? error.message.slice(0, 160) : "";
+    const detail = errorDetail(error);
     return redirectToWizard(request, detail ? { error: stage, detail } : { error: stage });
   }
 }
