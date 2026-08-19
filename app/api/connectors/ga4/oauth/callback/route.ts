@@ -47,9 +47,15 @@ export async function GET(request: Request) {
     return redirectToWizard(request, { error: "state_invalido" });
   }
 
+  // Rastreia em qual etapa uma exceção ocorreu, para transformar o
+  // "falha_conexao" genérico numa causa acionável (troca de token / Vault /
+  // banco). O erro completo continua indo pro log do servidor; ao cliente vai
+  // só a categoria + uma mensagem curta e não sensível (nunca o token).
+  let stage: "troca_token" | "cofre" | "banco" = "troca_token";
   try {
     const { user, orgId } = await requireOrgAdmin();
 
+    stage = "troca_token";
     const tokens = await exchangeCode(code);
     const refreshToken = tokens.refresh_token;
     if (!refreshToken) {
@@ -61,14 +67,18 @@ export async function GET(request: Request) {
     const supabase = createServiceRoleClient();
 
     // Upsert por (org, connector): reautorizar nao duplica a conexao.
-    const { data: existing } = await supabase
+    stage = "banco";
+    const { data: existing, error: existingError } = await supabase
       .from("connections")
       .select("id, credentials_vault_id")
       .eq("org_id", orgId)
       .eq("connector_id", "ga4")
       .maybeSingle();
+    if (existingError) throw existingError;
 
+    stage = "cofre";
     const vaultSecretId = await createSecret(refreshToken, `ga4_refresh:${orgId}`);
+    stage = "banco";
 
     let connectionId: string;
     if (existing) {
@@ -120,7 +130,8 @@ export async function GET(request: Request) {
     if (error instanceof UnauthorizedError) {
       return redirectToWizard(request, { error: "nao_autorizado" });
     }
-    console.error("[/api/connectors/ga4/oauth/callback]", error);
-    return redirectToWizard(request, { error: "falha_conexao" });
+    console.error(`[/api/connectors/ga4/oauth/callback] stage=${stage}`, error);
+    const detail = error instanceof Error ? error.message.slice(0, 160) : "";
+    return redirectToWizard(request, detail ? { error: stage, detail } : { error: stage });
   }
 }
