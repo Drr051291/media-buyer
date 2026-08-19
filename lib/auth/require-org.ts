@@ -22,12 +22,46 @@ export async function requireOrgMember() {
     .from("org_members")
     .select("org_id, role")
     .eq("user_id", user.id)
+    // Determinístico: sem ordenar, "a primeira org" varia entre chamadas para
+    // usuários em >1 org — o que fazia o create e a leitura mirarem orgs
+    // diferentes. Para escopar a uma conexão específica, use assertOrgMembership.
+    .order("org_id", { ascending: true })
     .limit(1)
     .maybeSingle();
 
   if (!membership) throw new UnauthorizedError("Usuário sem organização", 403);
 
   return { user, orgId: membership.org_id as string, role: membership.role as string };
+}
+
+/**
+ * Autoriza o usuário logado contra uma org ESPECÍFICA (a da conexão/recurso),
+ * em vez de re-derivar "a primeira org do usuário". Corrige o 404 espúrio
+ * ("Conexao nao encontrada") para usuários em mais de uma organização.
+ * `roles` opcional aplica o mesmo gate de papel de requireOrgAdmin/Contributor.
+ */
+export async function assertOrgMembership(
+  orgId: string,
+  opts?: { roles?: string[] },
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new UnauthorizedError("Não autenticado", 401);
+
+  const { data: membership } = await supabase
+    .from("org_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("org_id", orgId)
+    .maybeSingle();
+
+  if (!membership) throw new UnauthorizedError("Sem acesso a esta organização", 403);
+  if (opts?.roles && !opts.roles.includes(membership.role as string)) {
+    throw new UnauthorizedError("Permissão insuficiente para esta ação", 403);
+  }
+  return { user, orgId, role: membership.role as string };
 }
 
 /** Conexão de tokens Meta é uma ação administrativa (secao 7: policy is_org_admin). */
